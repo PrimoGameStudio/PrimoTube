@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=PrimoTube
+Comment=Modern YouTube client built with Qt and QML
+Exec=primotube
+Icon=primotube
+Terminal=false
+StartupNotify=true
+StartupWMClass=primotube
+Keywords=YouTube;Video;Player;Music;
+Categories=AudioVideo;Video;Player;

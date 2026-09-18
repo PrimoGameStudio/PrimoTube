@@ -1,0 +1,11 @@
+build/
+*.user
+cmake-build-*/
+.cache/
+*.o
+moc_*
+qrc_*
+*.qm
+*.qmlc
+Testing/
+.qtcreator/

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.primotube.primotube</id>
+  <name>PrimoTube</name>
+  <summary>Modern YouTube client built with Qt and QML</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer>
+    <name>PrimoTube contributors</name>
+  </developer>
+  <description>
+    <p>Search YouTube videos, play them in HD via embedded libmpv, download them with yt-dlp, and keep a local watch history and favorites list.</p>
+  </description>
+  <launchable type="desktop-id">primotube.desktop</launchable>
+  <icon type="stock">primotube</icon>
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+    <category>Player</category>
+  </categories>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.0" date="2026-09-10" />
+  </releases>
+  <url type="homepage">https://github.com/primotube/primotube</url>
+  <url type="bugtracker">https://github.com/primotube/primotube/issues</url>
+</component>
