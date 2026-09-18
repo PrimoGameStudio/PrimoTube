@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     setlocale(LC_NUMERIC, "C");
     QGuiApplication app(argc, argv);
     setlocale(LC_NUMERIC, "C");
-    app.setOrganizationName(QStringLiteral("PrimoTube"));
+    app.setOrganizationName(QStringLiteral("PrimoGameStudio"));
     app.setApplicationName(QStringLiteral("PrimoTube"));
 
     SettingsManager settingsManager;

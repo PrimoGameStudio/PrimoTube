@@ -6,7 +6,7 @@
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <developer>
-    <name>PrimoTube contributors</name>
+    <name>PrimoGameStudio</name>
   </developer>
   <description>
     <p>Search YouTube videos, play them in HD via embedded libmpv, download them with yt-dlp, and keep a local watch history and favorites list.</p>
@@ -22,6 +22,6 @@
   <releases>
     <release version="0.1.0" date="2026-09-10" />
   </releases>
-  <url type="homepage">https://github.com/primotube/primotube</url>
-  <url type="bugtracker">https://github.com/primotube/primotube/issues</url>
+  <url type="homepage">https://github.com/PrimoGameStudio/PrimoTube</url>
+  <url type="bugtracker">https://github.com/PrimoGameStudio/PrimoTube/issues</url>
 </component>

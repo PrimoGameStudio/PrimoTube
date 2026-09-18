@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(PrimoTube VERSION 0.1.0
     DESCRIPTION "Modern YouTube client built with Qt and QML"
-    HOMEPAGE_URL "https://github.com/primotube/primotube"
+    HOMEPAGE_URL "https://github.com/PrimoGameStudio/PrimoTube"
     LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)

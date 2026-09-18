@@ -30,7 +30,7 @@ private slots:
         setlocale(LC_NUMERIC, "C");
         // Isolate QSettings from the real user config: SettingsManager and
         // HistoryManager use the default QSettings (app org/name).
-        QCoreApplication::setOrganizationName(QStringLiteral("PrimoTubeTest"));
+        QCoreApplication::setOrganizationName(QStringLiteral("PrimoGameStudioTest"));
         QCoreApplication::setApplicationName(QStringLiteral("PrimoTubeTest"));
     }
 
