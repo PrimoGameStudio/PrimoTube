@@ -65,6 +65,23 @@ private slots:
             SettingsManager reloaded;
             QCOMPARE(reloaded.theme(), QString("dark"));
         }
+
+        // Forced built-in player: defaults to off, persists, and signals.
+        QCOMPARE(settings.forceFallbackPlayer(), false);
+        QSignalSpy spy(&settings, &SettingsManager::forceFallbackPlayerChanged);
+        settings.setForceFallbackPlayer(true);
+        QCOMPARE(settings.forceFallbackPlayer(), true);
+        QCOMPARE(spy.count(), 1);
+        // Same value again: no signal, no state change.
+        settings.setForceFallbackPlayer(true);
+        QCOMPARE(spy.count(), 1);
+        {
+            SettingsManager reloaded;
+            QCOMPARE(reloaded.forceFallbackPlayer(), true);
+        }
+        settings.setForceFallbackPlayer(false);
+        QCOMPARE(settings.forceFallbackPlayer(), false);
+        QCOMPARE(spy.count(), 2);
     }
 
     void testDownloadDirectoryValidation() {

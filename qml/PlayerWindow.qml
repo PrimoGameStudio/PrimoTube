@@ -53,10 +53,11 @@ ApplicationWindow {
         mprisAdapter.setEffectiveState(false, 0, duration ?? 0,
                                        settingsManager.volume, playerPage.effectiveMpv)
         // Prefer mpv (DASH/HD + subtitles); fall back to QtMultimedia
-        // progressive streams when libmpv is unavailable.
+        // progressive streams when libmpv is unavailable or the user
+        // forced the built-in player in the settings.
         // History is added once playback actually starts (see maybeAddHistory),
         // so failed lookups don't pollute the list.
-        if (mpvController.available) {
+        if (mpvController.available && !settingsManager.forceFallbackPlayer) {
             mpvController.load(videoWatchUrl && videoWatchUrl.length > 0 ? videoWatchUrl : videoId)
         } else {
             playbackResolver.resolve(videoId)
@@ -67,7 +68,7 @@ ApplicationWindow {
         window.requestActivate()
         // Non-OpenGL RHI (Vulkan/Metal): mpv cannot render. Flip to the
         // compat player automatically instead of a black surface.
-        if (mpvController.available && !playerPage.effectiveMpv) {
+        if (mpvController.available && !settingsManager.forceFallbackPlayer && !playerPage.effectiveMpv) {
             playerPage.fallbackToCompat(qsTr("mpv rendering unavailable — using fallback player"))
         }
     }
