@@ -173,6 +173,10 @@ Page {
                             Layout.preferredWidth: 120
                             model: page.qualityModel
                             currentIndex: 0
+                            // The quality cap only applies to libmpv; the
+                            // built-in player always serves progressive
+                            // streams.
+                            enabled: !settingsManager.forceFallbackPlayer
                             onActivated: function(idx) {
                                 var cap = page.qualityModel[idx]
                                 settingsManager.qualityCap = cap
@@ -190,6 +194,30 @@ Page {
                         text: page.qualityNotice
                         color: "#2e7d32"
                         font.pixelSize: 12
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Always use the built-in player")
+                            color: effectiveTheme.textColor
+                        }
+                        Switch {
+                            checked: settingsManager.forceFallbackPlayer
+                            onToggled: settingsManager.forceFallbackPlayer = checked
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Play with the lightweight built-in player instead of libmpv. "
+                                + "Lower CPU/GPU usage on old hardware or slow connections, "
+                                + "but playback is limited to progressive streams (usually SD) "
+                                + "and subtitle and audio-track selection are unavailable.")
+                        color: effectiveTheme.textColor
+                        opacity: 0.7
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
                     }
                     RowLayout {
                         Layout.fillWidth: true

@@ -13,6 +13,9 @@ class SettingsManager : public QObject {
     Q_PROPERTY(double volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(QString qualityCap READ qualityCap WRITE setQualityCap NOTIFY qualityCapChanged)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY themeChanged)
+    // When true, playback always uses the lightweight QtMultimedia player
+    // instead of libmpv (low CPU/GPU, but progressive streams only).
+    Q_PROPERTY(bool forceFallbackPlayer READ forceFallbackPlayer WRITE setForceFallbackPlayer NOTIFY forceFallbackPlayerChanged)
 public:
     explicit SettingsManager(QObject *parent = nullptr);
 
@@ -41,12 +44,16 @@ public:
     QString theme() const;
     void setTheme(const QString &t);
 
+    bool forceFallbackPlayer() const;
+    void setForceFallbackPlayer(bool force);
+
 signals:
     void downloadDirectoryChanged();
     void maxResultsChanged();
     void volumeChanged();
     void qualityCapChanged();
     void themeChanged();
+    void forceFallbackPlayerChanged();
 
 private:
     QSettings m_settings;
@@ -55,4 +62,5 @@ private:
     double m_volume;
     QString m_qualityCap;
     QString m_theme;
+    bool m_forceFallbackPlayer = false;
 };

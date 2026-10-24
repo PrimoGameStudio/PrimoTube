@@ -19,6 +19,7 @@ SettingsManager::SettingsManager(QObject *parent)
     m_qualityCap = qualityCapOptions().contains(savedCap) ? savedCap : QStringLiteral("Auto");
     const QString savedTheme = m_settings.value(QStringLiteral("theme"), QStringLiteral("dark")).toString();
     m_theme = themeOptions().contains(savedTheme) ? savedTheme : QStringLiteral("dark");
+    m_forceFallbackPlayer = m_settings.value(QStringLiteral("forceFallbackPlayer"), false).toBool();
 }
 
 QString SettingsManager::downloadDirectory() const
@@ -128,4 +129,18 @@ void SettingsManager::setTheme(const QString &t)
     m_theme = t;
     m_settings.setValue(QStringLiteral("theme"), t);
     emit themeChanged();
+}
+
+bool SettingsManager::forceFallbackPlayer() const
+{
+    return m_forceFallbackPlayer;
+}
+
+void SettingsManager::setForceFallbackPlayer(bool force)
+{
+    if (m_forceFallbackPlayer == force)
+        return;
+    m_forceFallbackPlayer = force;
+    m_settings.setValue(QStringLiteral("forceFallbackPlayer"), force);
+    emit forceFallbackPlayerChanged();
 }

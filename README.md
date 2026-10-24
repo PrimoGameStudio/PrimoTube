@@ -11,7 +11,8 @@ a local watch history and favorites list.
 - YouTube search with paged results (up to 50, 10 per page)
 - HD playback (DASH, up to 4K) via embedded **libmpv**, with subtitle and
   audio track selection; automatic fallback to QtMultimedia progressive
-  streams when libmpv is unavailable
+  streams when libmpv is unavailable, plus an option to **always use the
+  built-in player** (lower CPU/GPU on old hardware or slow connections)
 - Video details: description, view/like counts, upload date, subtitle languages
 - Downloads (best quality, merged to MP4 via ffmpeg)
 - Watch history (100 items) and favorites, persisted locally
@@ -50,6 +51,11 @@ ctest --test-dir build --output-on-failure
 ## Notes
 
 - On Wayland the app uses the OpenGL RHI backend for mpv rendering.
+- Settings → Playback → *Always use the built-in player* forces the
+  QtMultimedia path for every video and switches the currently playing
+  video immediately. The built-in player only handles progressive streams
+  (usually SD), so the quality cap, subtitle and audio-track selection do
+  not apply there.
 - libmpv requires the C numeric locale; the app sets it on startup.
 - Quality caps apply to the next video loaded.
 - History entries are added once playback starts successfully, so failed

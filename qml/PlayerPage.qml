@@ -21,7 +21,7 @@ Page {
     property string errorText: ""
     property bool showDetails: false
     property string noticeText: ""
-    property bool useMpv: mpvController.available
+    property bool useMpv: mpvController.available && !settingsManager.forceFallbackPlayer
     // True only when mpv is both available and renderable; otherwise the
     // QtMultimedia fallback owns playback even if useMpv was snapshotted true.
     // mpvFailed flips to compat after an mpv error or non-GL RHI detection.
@@ -149,6 +149,41 @@ Page {
         playbackResolver.resolve(page.videoId)
     }
 
+    // Live switch between the libmpv and the built-in (QtMultimedia) player
+    // when the user toggles the "always use the built-in player" setting.
+    function switchPlayerBackend() {
+        if (page.videoId.length === 0)
+            return
+        page.errorText = ""
+        if (settingsManager.forceFallbackPlayer) {
+            // libmpv -> built-in player.
+            mpvController.stop()
+            page.noticeText = qsTr("Switched to the built-in player — playback restarted")
+            page.pokeBars()
+            noticeTimer.restart()
+            playbackResolver.resolve(page.videoId)
+        } else {
+            // Built-in player -> libmpv.
+            playbackResolver.cancel()
+            player.stop()
+            player.source = ""
+            if (mpvController.available && mpvVideo.supported) {
+                page.mpvFailed = false
+                page.noticeText = qsTr("Switched to mpv — playback restarted")
+                page.pokeBars()
+                noticeTimer.restart()
+                mpvController.load(page.videoWatchUrl.length > 0 ? page.videoWatchUrl : page.videoId)
+            } else {
+                // No usable mpv rendering (non-OpenGL RHI): stay on the
+                // built-in player and say why.
+                page.noticeText = qsTr("mpv rendering unavailable — using fallback player")
+                page.pokeBars()
+                noticeTimer.restart()
+            }
+        }
+        page.pushMprisState()
+    }
+
     // Raw backend detail for the Details drawer: resolver stderr on the
     // compat path, mpv error otherwise (previously mpv errors hid it).
     function detailText() {
@@ -270,6 +305,9 @@ Page {
         function onQualityCapChanged() {
             if (qualityBox && !qualityBox.popup.visible)
                 qualityBox.currentIndex = Math.max(0, page.qualityModel.indexOf(settingsManager.qualityCap))
+        }
+        function onForceFallbackPlayerChanged() {
+            page.switchPlayerBackend()
         }
     }
 
@@ -436,6 +474,7 @@ Page {
                     Button {
                         text: qsTr("Retry mpv")
                         visible: page.videoId.length > 0 && page.mpvFailed
+                                && !settingsManager.forceFallbackPlayer
                         onClicked: page.retryMpv()
                     }
                     Button {
