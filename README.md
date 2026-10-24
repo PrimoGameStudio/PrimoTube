@@ -1,5 +1,7 @@
 # PrimoTube
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/A3D729DKXZ)
+
 A modern YouTube client built with Qt 6 and QML. Search videos, play them in
 HD via embedded libmpv (with subtitles), download them with yt-dlp, and keep
 a local watch history and favorites list.
