@@ -68,6 +68,7 @@ Page {
     }
 
     header: ToolBar {
+        background: Rectangle { color: effectiveTheme.surfaceColor }
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 8

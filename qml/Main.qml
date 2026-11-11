@@ -8,6 +8,7 @@ ApplicationWindow {
     width: 1024
     height: 700
     title: qsTr("PrimoTube")
+    background: Rectangle { color: theme.backgroundColor }
 
     Component.onCompleted: {
         // Silent background check; banner appears only if an update exists.
@@ -55,6 +56,7 @@ ApplicationWindow {
         id: playerWindowComponent
         PlayerWindow {
             mainWindow: root
+            pageTheme: theme
         }
     }
 

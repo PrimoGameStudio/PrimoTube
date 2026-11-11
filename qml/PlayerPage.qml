@@ -8,6 +8,9 @@ import PrimoTube 1.0
 Page {
     id: page
     signal channelClicked(string channelId, string channelUrl, string channelName)
+    property var pageTheme: null
+    Theme { id: fallbackTheme }
+    readonly property var effectiveTheme: pageTheme ?? fallbackTheme
     property string videoId: ""
     property string videoTitle: ""
     property string videoChannel: ""
@@ -439,7 +442,7 @@ Page {
                 anchors.centerIn: parent
                 visible: page.useMpv && !mpvVideo.supported
                 text: qsTr("mpv rendering unavailable — using fallback player")
-                color: "white"
+                color: effectiveTheme.textColor
                 opacity: 0.7
             }
 
@@ -461,7 +464,7 @@ Page {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     text: page.errorText
-                    color: "white"
+                    color: effectiveTheme.textColor
                 }
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
@@ -469,22 +472,26 @@ Page {
                     Button {
                         text: qsTr("Retry")
                         visible: page.videoId.length > 0
+                        background: Rectangle { color: effectiveTheme.surfaceColor }
                         onClicked: page.retryPlayback()
                     }
                     Button {
                         text: qsTr("Retry mpv")
                         visible: page.videoId.length > 0 && page.mpvFailed
                                 && !settingsManager.forceFallbackPlayer
+                        background: Rectangle { color: effectiveTheme.surfaceColor }
                         onClicked: page.retryMpv()
                     }
                     Button {
                         text: qsTr("Open in Browser")
                         visible: page.videoWatchUrl.length > 0
+                        background: Rectangle { color: effectiveTheme.surfaceColor }
                         onClicked: Qt.openUrlExternally(page.videoWatchUrl)
                     }
                     Button {
                         text: page.showDetails ? qsTr("Hide Details") : qsTr("Details")
                         visible: page.detailText().length > 0
+                        background: Rectangle { color: effectiveTheme.surfaceColor }
                         onClicked: page.showDetails = !page.showDetails
                     }
                 }
@@ -492,7 +499,8 @@ Page {
                     Layout.fillWidth: true
                     visible: page.showDetails && page.detailText().length > 0
                     text: page.detailText()
-                    color: "#bbbbbb"
+                    color: effectiveTheme.textColor
+                    opacity: 0.7
                     font.family: "monospace"
                     font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere
@@ -523,7 +531,7 @@ Page {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
                         text: page.videoTitle + (page.effectiveMpv ? "" : qsTr(" (compat)"))
-                        color: "white"
+                        color: effectiveTheme.textColor
                         font.bold: true
                         elide: Text.ElideRight
                     }
@@ -672,7 +680,7 @@ Page {
                             spacing: 8
                             Label {
                                 text: qsTr("Subtitles:")
-                                color: "white"
+                                color: effectiveTheme.textColor
                                 opacity: 0.7
                                 font.pixelSize: 12
                             }
@@ -692,7 +700,7 @@ Page {
                             }
                             Label {
                                 text: qsTr("Audio:")
-                                color: "white"
+                                color: effectiveTheme.textColor
                                 opacity: 0.7
                                 font.pixelSize: 12
                                 visible: audioBox.visible
@@ -711,7 +719,7 @@ Page {
                             }
                             Label {
                                 text: qsTr("Quality:")
-                                color: "white"
+                                color: effectiveTheme.textColor
                                 opacity: 0.7
                                 font.pixelSize: 12
                             }
@@ -738,7 +746,7 @@ Page {
                         Layout.fillWidth: true
                         visible: !page.effectiveMpv && playbackResolver.resolving
                         text: playbackResolver.statusText.length > 0 ? playbackResolver.statusText : qsTr("Resolving stream URL…")
-                        color: "white"
+                        color: effectiveTheme.textColor
                         opacity: 0.8
                         font.pixelSize: 12
                     }
@@ -766,7 +774,7 @@ Page {
                         }
                         Label {
                             text: page.effectiveMpv ? page.fmt(mpvController.position) : page.fmtMs(player.position)
-                            color: "white"
+                            color: effectiveTheme.textColor
                             font.pixelSize: 12
                             opacity: 0.8
                         }
@@ -796,7 +804,7 @@ Page {
                         }
                         Label {
                             text: page.fmt(page.cachedDur)
-                            color: "white"
+                            color: effectiveTheme.textColor
                             font.pixelSize: 12
                             opacity: 0.8
                         }
@@ -835,7 +843,7 @@ Page {
                             Layout.fillWidth: true
                             text: videoDetails.loading ? qsTr("Loading details…")
                                 : (videoDetails.viewCount >= 0 ? qsTr("%1 views • %2 likes").arg(videoDetails.viewCount.toLocaleString()).arg(videoDetails.likeCount >= 0 ? videoDetails.likeCount.toLocaleString() : "–") : "")
-                            color: "white"
+                            color: effectiveTheme.textColor
                             opacity: 0.6
                             font.pixelSize: 12
                             elide: Text.ElideRight
@@ -870,7 +878,7 @@ Page {
                 anchors.bottom: controlsOverlay.top
                 width: Math.min(parent.width * 0.42, 420)
                 visible: page.showDetails
-                color: "#ee000000"
+                color: effectiveTheme.surfaceColor
 
                 ScrollView {
                     anchors.fill: parent
@@ -883,7 +891,7 @@ Page {
                         Label {
                             Layout.fillWidth: true
                             text: videoDetails.title.length > 0 ? videoDetails.title : page.videoTitle
-                            color: "white"
+                            color: effectiveTheme.textColor
                             font.bold: true
                             wrapMode: Text.WordWrap
                         }
@@ -903,7 +911,7 @@ Page {
                                     parts.push(qsTr("%1 likes").arg(videoDetails.likeCount.toLocaleString()))
                                 return parts.join(" • ")
                             }
-                            color: "white"
+                            color: effectiveTheme.textColor
                             opacity: 0.7
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
@@ -915,7 +923,7 @@ Page {
                             Layout.fillWidth: true
                             visible: videoDetails.subtitleLangs.length > 0
                             text: qsTr("Subtitles: %1").arg(videoDetails.subtitleLangs.join(", "))
-                            color: "white"
+                            color: effectiveTheme.textColor
                             opacity: 0.7
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
@@ -939,7 +947,7 @@ Page {
                 anchors.bottom: controlsOverlay.top
                 width: Math.min(parent.width * 0.45, 440)
                 visible: page.showQueue
-                color: "#ee000000"
+                color: effectiveTheme.surfaceColor
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -951,7 +959,7 @@ Page {
                         Label {
                             Layout.fillWidth: true
                             text: qsTr("Play Queue (%1)").arg(queueModel.count)
-                            color: "white"
+                            color: effectiveTheme.textColor
                             font.bold: true
                         }
                         Button {
@@ -974,7 +982,9 @@ Page {
                             delegate: ItemDelegate {
                                 width: queueListView.width
                                 background: Rectangle {
-                                    color: (index === queueModel.currentIndex) ? "#33ffffff" : "transparent"
+                                    color: (index === queueModel.currentIndex)
+                                        ? (effectiveTheme.isDark ? "#33ffffff" : "#33000000")
+                                        : "transparent"
                                 }
                                 contentItem: RowLayout {
                                     spacing: 8
@@ -997,7 +1007,7 @@ Page {
                                         Label {
                                             Layout.fillWidth: true
                                             text: model.channel ?? ""
-                                            color: "white"
+                                            color: effectiveTheme.textColor
                                             opacity: 0.7
                                             font.pixelSize: 11
                                             elide: Text.ElideRight
@@ -1022,7 +1032,7 @@ Page {
                             anchors.centerIn: parent
                             visible: queueModel.count === 0
                             text: qsTr("Queue is empty.\nAdd videos from search or channel pages.")
-                            color: "white"
+                            color: effectiveTheme.textColor
                             horizontalAlignment: Text.AlignHCenter
                             opacity: 0.6
                         }
@@ -1034,7 +1044,7 @@ Page {
                         Label {
                             Layout.fillWidth: true
                             text: qsTr("Auto-play next video")
-                            color: "white"
+                            color: effectiveTheme.textColor
                             font.pixelSize: 12
                         }
                         Switch {

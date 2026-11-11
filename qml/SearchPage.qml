@@ -77,6 +77,8 @@ Page {
                 Button {
                     text: searchBackend.searching ? qsTr("Stop") : qsTr("Search")
                     enabled: queryField.text.trim().length > 0 || searchBackend.searching
+                    palette.buttonText: effectiveTheme.textColor
+                    background: Rectangle { color: effectiveTheme.surfaceColor }
                     onClicked: {
                         if (searchBackend.searching) {
                             searchBackend.cancel()
@@ -97,11 +99,31 @@ Page {
                 id: tabBar
                 Layout.fillWidth: true
                 background: Rectangle { color: effectiveTheme.surfaceColor }
-                TabButton { text: qsTr("Home"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Search Results"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Watch History"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Favorites"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Channels"); palette.buttonText: effectiveTheme.textColor }
+                TabButton {
+                    text: qsTr("Home")
+                    palette.buttonText: effectiveTheme.textColor
+                    background: Rectangle { color: effectiveTheme.surfaceColor }
+                }
+                TabButton {
+                    text: qsTr("Search Results")
+                    palette.buttonText: effectiveTheme.textColor
+                    background: Rectangle { color: effectiveTheme.surfaceColor }
+                }
+                TabButton {
+                    text: qsTr("Watch History")
+                    palette.buttonText: effectiveTheme.textColor
+                    background: Rectangle { color: effectiveTheme.surfaceColor }
+                }
+                TabButton {
+                    text: qsTr("Favorites")
+                    palette.buttonText: effectiveTheme.textColor
+                    background: Rectangle { color: effectiveTheme.surfaceColor }
+                }
+                TabButton {
+                    text: qsTr("Channels")
+                    palette.buttonText: effectiveTheme.textColor
+                    background: Rectangle { color: effectiveTheme.surfaceColor }
+                }
             }
         }
     }
@@ -123,6 +145,7 @@ Page {
             Button {
                 text: homeFeedBackend.loading ? qsTr("Stop") : qsTr("Refresh")
                 enabled: homeFeedBackend.loading || subscriptionsModel.rowCount() > 0
+                background: Rectangle { color: effectiveTheme.surfaceColor }
                 ToolTip.text: homeFeedBackend.loading && homeFeedBackend.channelCount > 0
                     ? qsTr("Loading channel %1 of %2…").arg(homeFeedBackend.channelsDone + 1).arg(homeFeedBackend.channelCount)
                     : qsTr("Fetch the latest videos (3 per channel)")
@@ -153,6 +176,7 @@ Page {
             Button {
                 text: qsTr("▶ Play All")
                 visible: homeFeedModel.rowCount() > 0 && !homeFeedBackend.loading
+                background: Rectangle { color: effectiveTheme.surfaceColor }
                 onClicked: queueModel.enqueueModel(homeFeedModel)
             }
         }
@@ -280,6 +304,7 @@ Page {
                 width: videoResultsView.width
                 visible: tabBar.currentIndex === 1 && searchBackend.hasMore && !searchBackend.searching
                 text: qsTr("Load more (%1 shown)").arg(searchBackend.resultCount)
+                background: Rectangle { color: effectiveTheme.surfaceColor }
                 onClicked: searchBackend.loadMore()
             }
             }

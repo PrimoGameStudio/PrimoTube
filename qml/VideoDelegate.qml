@@ -5,6 +5,7 @@ import QtQuick.Layouts
 ItemDelegate {
     id: root
     signal channelClicked(string channelId, string channelUrl, string channelName)
+    background: Rectangle { color: effectiveTheme.backgroundColor }
 
     contentItem: RowLayout {
         spacing: 10
@@ -49,6 +50,7 @@ ItemDelegate {
                 Layout.fillWidth: true
                 text: model.title ?? ""
                 font.bold: true
+                color: effectiveTheme.textColor
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
@@ -64,7 +66,7 @@ ItemDelegate {
                     text: parent.text
                     opacity: 0.7
                     elide: Text.ElideRight
-                    color: parent.hovered ? palette.highlight : palette.windowText
+                    color: parent.hovered ? "#6cb9ff" : effectiveTheme.textColor
                     font.underline: parent.hovered
                 }
                 background: Item {}
@@ -85,6 +87,7 @@ ItemDelegate {
                 Layout.fillWidth: true
                 visible: (model.description ?? "").length > 0
                 text: (model.description ?? "").split("\n")[0]
+                color: effectiveTheme.textColor
                 opacity: 0.5
                 font.pixelSize: 12
                 maximumLineCount: 1
@@ -94,6 +97,7 @@ ItemDelegate {
                 Layout.fillWidth: true
                 visible: (model.uploadDate ?? "").length > 0
                 text: model.uploadDate ?? ""
+                color: effectiveTheme.textColor
                 opacity: 0.45
                 font.pixelSize: 11
                 maximumLineCount: 1
@@ -111,6 +115,7 @@ ItemDelegate {
                 padding: 10
                 Layout.preferredHeight: 36
                 focusPolicy: Qt.NoFocus
+                background: Rectangle { color: effectiveTheme.surfaceColor }
                 ToolTip.text: qsTr("Add to queue")
                 ToolTip.visible: hovered
                 onClicked: {
@@ -123,6 +128,7 @@ ItemDelegate {
                 padding: 10
                 Layout.preferredHeight: 36
                 focusPolicy: Qt.NoFocus
+                background: Rectangle { color: effectiveTheme.surfaceColor }
                 ToolTip.text: qsTr("Play next")
                 ToolTip.visible: hovered
                 onClicked: {

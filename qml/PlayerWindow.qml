@@ -11,6 +11,7 @@ ApplicationWindow {
     minimumHeight: 320
     visible: false
     property var mainWindow: null
+    property var pageTheme: null
     title: playerPage.videoTitle.length > 0
         ? playerPage.videoTitle + " — PrimoTube"
         : qsTr("PrimoTube Player")
@@ -78,6 +79,7 @@ ApplicationWindow {
     PlayerPage {
         id: playerPage
         anchors.fill: parent
+        pageTheme: pageTheme
         playerWindow: window
         onChannelClicked: function(channelId, channelUrl, channelName) {
             if (window.mainWindow && window.mainWindow.openChannelPage) {
