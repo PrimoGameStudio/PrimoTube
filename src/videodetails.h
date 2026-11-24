@@ -52,7 +52,6 @@ private slots:
 
 private:
     void setLoading(bool v);
-    void clearData();
 
     QProcess *m_process = nullptr;
     bool m_loading = false;
@@ -68,7 +67,6 @@ private:
     QString m_uploadDate;
     QStringList m_subtitleLangs;
     QString m_lastError;
-    QString m_activeUrl;
     QString m_pendingUrl;
     bool m_hasPending = false;
 };

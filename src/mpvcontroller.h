@@ -93,7 +93,6 @@ private:
     void setDuration(double v);
     void setLoading(bool v);
     void observeProperties();
-    void parseTrackList();
     void parseTrackList(const struct mpv_node &node);
     void updateLoadingFromStallFlags();
     static void wakeupCallback(void *ctx);

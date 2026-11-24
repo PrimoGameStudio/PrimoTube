@@ -111,6 +111,7 @@ ItemDelegate {
                 padding: 10
                 Layout.preferredHeight: 36
                 focusPolicy: Qt.NoFocus
+                Accessible.name: qsTr("Add to queue")
                 ToolTip.text: qsTr("Add to queue")
                 ToolTip.visible: hovered
                 onClicked: {
@@ -123,6 +124,7 @@ ItemDelegate {
                 padding: 10
                 Layout.preferredHeight: 36
                 focusPolicy: Qt.NoFocus
+                Accessible.name: qsTr("Play next")
                 ToolTip.text: qsTr("Play next")
                 ToolTip.visible: hovered
                 onClicked: {

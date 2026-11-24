@@ -347,15 +347,6 @@ void MpvController::onMpvEvents()
     }
 }
 
-void MpvController::parseTrackList()
-{
-    mpv_node node{};
-    if (mpv_get_property(m_mpv, "track-list", MPV_FORMAT_NODE, &node) < 0)
-        return;
-    parseTrackList(node);
-    mpv_free_node_contents(&node);
-}
-
 void MpvController::parseTrackList(const mpv_node &node)
 {
     QStringList subs;

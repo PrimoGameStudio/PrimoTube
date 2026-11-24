@@ -57,7 +57,7 @@ QString normalizeChannelUrl(const QString &query)
             q = q.left(q.size() - suffix.size());
     }
     q = stripTrailingSlash(q);
-    if (!q.startsWith(QStringLiteral("http")))
+    if (!q.startsWith(QStringLiteral("http"), Qt::CaseInsensitive))
         q = QStringLiteral("https://") + q;
     return q;
 }
@@ -213,24 +213,44 @@ QString formatCount(qint64 n)
 namespace {
 // Unescape the subset of JSON string escapes YouTube embeds in page HTML
 // (\/ \" \\ \n \uXXXX) so extracted URLs/descriptions are usable.
-QString unescapeJsonString(QString s)
+QString unescapeJsonString(const QString &s)
 {
-    s.replace(QStringLiteral("\\/"), QStringLiteral("/"));
-    s.replace(QStringLiteral("\\\""), QStringLiteral("\""));
-    s.replace(QStringLiteral("\\\\"), QStringLiteral("\\"));
-    s.replace(QStringLiteral("\\n"), QStringLiteral("\n"));
-    static const QRegularExpression unicode(QStringLiteral("\\\\u([0-9a-fA-F]{4})"));
-    auto it = unicode.globalMatch(s);
-    // Apply back-to-front so earlier offsets stay valid.
-    QList<QRegularExpressionMatch> matches;
-    while (it.hasNext())
-        matches.append(it.next());
-    for (int i = matches.size() - 1; i >= 0; --i) {
-        const auto &m = matches.at(i);
-        const QChar c(m.captured(1).toUShort(nullptr, 16));
-        s.replace(m.capturedStart(0), m.capturedLength(0), c);
+    // Single left-to-right pass: a literal "\\u0041" must stay "\u0041"
+    // rather than being double-unescaped into "A" by a second replace pass.
+    QString out;
+    out.reserve(s.size());
+    for (int i = 0; i < s.size(); ++i) {
+        const QChar c = s.at(i);
+        if (c != QLatin1Char('\\') || i + 1 >= s.size()) {
+            out.append(c);
+            continue;
+        }
+        const QChar n = s.at(++i);
+        switch (n.unicode()) {
+        case '/': out.append(QLatin1Char('/')); break;
+        case '"': out.append(QLatin1Char('"')); break;
+        case '\\': out.append(QLatin1Char('\\')); break;
+        case 'n': out.append(QLatin1Char('\n')); break;
+        case 'u': {
+            bool ok = false;
+            if (i + 4 < s.size()) {
+                const ushort code = s.mid(i + 1, 4).toUShort(&ok, 16);
+                if (ok) {
+                    out.append(QChar(code));
+                    i += 4;
+                    break;
+                }
+            }
+            out.append(QLatin1Char('u'));
+            break;
+        }
+        default:
+            out.append(QLatin1Char('\\'));
+            out.append(n);
+            break;
+        }
     }
-    return s;
+    return out;
 }
 
 bool isUsableAvatarUrl(const QString &url)

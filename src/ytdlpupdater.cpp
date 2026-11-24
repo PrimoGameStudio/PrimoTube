@@ -104,8 +104,11 @@ void YtdlpUpdater::onPypiFinished()
         return;
     reply->deleteLater();
     if (reply->error() == QNetworkReply::NoError) {
-        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        m_latest = doc.object().value(QStringLiteral("info")).toObject().value(QStringLiteral("version")).toString();
+        QJsonParseError parseError{};
+        const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll(), &parseError);
+        if (parseError.error == QJsonParseError::NoError && doc.isObject())
+            m_latest = doc.object().value(QStringLiteral("info")).toObject()
+                           .value(QStringLiteral("version")).toString();
     }
     m_checking = false;
     if (!m_current.isEmpty() && !m_latest.isEmpty()) {

@@ -280,6 +280,15 @@ void DownloadBackend::onProcessError(QProcess::ProcessError error)
 {
     Q_UNUSED(error)
     if (m_process->error() == QProcess::FailedToStart) {
+        if (m_hasPending) {
+            const QString next = m_pendingUrl;
+            m_hasPending = false;
+            m_pendingUrl.clear();
+            m_lastError.clear();
+            setDownloading(false);
+            download(next);
+            return;
+        }
         m_cancelled = false;
         setDownloading(false);
         m_lastError = tr("Could not start yt-dlp. Is it installed and in PATH?");

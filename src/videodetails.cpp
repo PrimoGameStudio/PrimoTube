@@ -35,7 +35,6 @@ void VideoDetails::fetch(const QString &videoIdOrUrl)
         return;
     }
     m_cancelled = false;
-    m_activeUrl = url;
     m_pendingUrl.clear();
     m_hasPending = false;
     // Keep previous data visible until the new payload arrives; failure
@@ -124,6 +123,8 @@ void VideoDetails::onProcessFinished(int exitCode, QProcess::ExitStatus exitStat
             m_subtitleLangs.append(it.key() + QStringLiteral(" (auto)"));
     }
     m_subtitleLangs.sort();
+    // A previous failure must not linger after a successful fetch.
+    m_lastError.clear();
     emit loaded();
 }
 
@@ -132,8 +133,12 @@ void VideoDetails::onProcessError(QProcess::ProcessError error)
     Q_UNUSED(error)
     if (m_process->error() == QProcess::FailedToStart) {
         if (m_hasPending) {
+            const QString next = m_pendingUrl;
             m_hasPending = false;
-            fetch(m_pendingUrl);
+            m_pendingUrl.clear();
+            m_lastError.clear();
+            setLoading(false);
+            fetch(next);
             return;
         }
         setLoading(false);
@@ -150,16 +155,3 @@ void VideoDetails::setLoading(bool v)
     emit loadingChanged();
 }
 
-void VideoDetails::clearData()
-{
-    m_videoId.clear();
-    m_title.clear();
-    m_channel.clear();
-    m_channelId.clear();
-    m_channelUrl.clear();
-    m_description.clear();
-    m_viewCount = -1;
-    m_likeCount = -1;
-    m_uploadDate.clear();
-    m_subtitleLangs.clear();
-}

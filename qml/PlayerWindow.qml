@@ -16,16 +16,6 @@ ApplicationWindow {
         : qsTr("PrimoTube Player")
 
     function openVideo(videoId, videoTitle, videoChannel, videoChannelId, videoChannelUrl, videoWatchUrl, durationString, duration, thumbnail, description) {
-        // Backwards compat: allow the legacy 8-arg call (no channel id/url).
-        if (videoWatchUrl === undefined && videoChannelUrl !== undefined) {
-            description = thumbnail
-            thumbnail = duration
-            duration = durationString
-            durationString = videoWatchUrl
-            videoWatchUrl = videoChannelUrl
-            videoChannelUrl = ""
-            videoChannelId = ""
-        }
         playerPage.stopPlayback()
         playerPage.videoId = videoId
         playerPage.videoTitle = videoTitle

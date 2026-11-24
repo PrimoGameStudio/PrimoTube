@@ -23,7 +23,7 @@ void HomeFeedBackend::sortNewestFirst(QVector<VideoItem> &items)
 
 void HomeFeedBackend::refresh(const QVariantList &channels)
 {
-    if (m_loading)
+    if (m_loading || !m_model)
         return;
     QVector<PendingChannel> pending;
     pending.reserve(channels.size());

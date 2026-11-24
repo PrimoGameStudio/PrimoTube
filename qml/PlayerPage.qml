@@ -248,7 +248,15 @@ Page {
 
     onErrorTextChanged: page.pokeBars()
     onVideoDurationChanged: page.refreshCachedDur()
-    onEffectiveMpvChanged: { page.refreshCachedDur(); page.pushMprisState() }
+    onEffectiveMpvChanged: {
+        page.refreshCachedDur()
+        page.pushMprisState()
+        // RHI/graphics support can flip at runtime. Don't leave a hidden mpv
+        // surface and an empty fallback player in that case.
+        if (!effectiveMpv && page.videoId.length > 0 && mpvController.available
+                && !settingsManager.forceFallbackPlayer && !page.mpvFailed)
+            page.fallbackToCompat(qsTr("mpv rendering unavailable — using fallback player"))
+    }
 
     function pokeBars() {
         titleOverlay.opacity = 1
@@ -384,25 +392,35 @@ Page {
                 page.togglePlay()
         }
     }
+    function seekFocusGuard() {
+        if (subBox.activeFocus || audioBox.activeFocus || qualityBox.activeFocus
+                || seek.activeFocus || volumeSlider.activeFocus)
+            return true
+        var item = Window.window ? Window.window.activeFocusItem : null
+        // These controls consume arrow keys natively.
+        return item instanceof Slider || item instanceof ComboBox
+            || item instanceof SpinBox || item instanceof TextField
+            || item instanceof TextArea
+    }
     Shortcut {
         sequence: "Left"
         context: Qt.WindowShortcut
-        onActivated: page.seekBy(-10)
+        onActivated: { if (!page.seekFocusGuard()) page.seekBy(-10) }
     }
     Shortcut {
         sequence: "Right"
         context: Qt.WindowShortcut
-        onActivated: page.seekBy(10)
+        onActivated: { if (!page.seekFocusGuard()) page.seekBy(10) }
     }
     Shortcut {
         sequence: "J"
         context: Qt.WindowShortcut
-        onActivated: page.seekBy(-10)
+        onActivated: { if (!page.seekFocusGuard()) page.seekBy(-10) }
     }
     Shortcut {
         sequence: "L"
         context: Qt.WindowShortcut
-        onActivated: page.seekBy(10)
+        onActivated: { if (!page.seekFocusGuard()) page.seekBy(10) }
     }
 
     ColumnLayout {
@@ -919,7 +937,19 @@ Page {
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
                             onLinkActivated: function(link) {
-                                page.channelClicked(videoDetails.channelId, videoDetails.channelUrl, videoDetails.channel)
+                                if (!link || link.length === 0)
+                                    return
+                                if (link.indexOf("watch?") >= 0 || link.indexOf("youtu.be/") >= 0) {
+                                    if (!clipboardHelper.isAllowedPlaybackTarget(link))
+                                        return
+                                    var win = page.playerWindow
+                                    var main = win && win.mainWindow
+                                    if (main && main.forwardPlayRequested)
+                                        main.forwardPlayRequested(link, "", "", "", "", link, "", 0, "", "")
+                                } else if (link.indexOf("youtube.com/") >= 0) {
+                                    // ChannelBackend re-validates the host/path.
+                                    page.channelClicked("", link, "")
+                                }
                             }
                         }
                         Label {
@@ -993,6 +1023,9 @@ Page {
                                         Layout.preferredWidth: 80
                                         Layout.preferredHeight: 45
                                         source: model.thumbnail ?? ""
+                                        sourceSize: Qt.size(160, 90)
+                                        asynchronous: true
+                                        cache: true
                                         fillMode: Image.PreserveAspectCrop
                                     }
                                     ColumnLayout {
@@ -1016,6 +1049,7 @@ Page {
                                     }
                                     Button {
                                         text: qsTr("✕")
+                                        Accessible.name: qsTr("Remove from queue")
                                         onClicked: queueModel.removeAt(index)
                                     }
                                 }

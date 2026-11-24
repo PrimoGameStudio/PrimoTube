@@ -103,7 +103,7 @@ SearchBackend::SearchBackend(VideoModel *model, QObject *parent)
 void SearchBackend::search(const QString &query, int maxResults)
 {
     const QString q = query.trimmed();
-    if (q.isEmpty())
+    if (q.isEmpty() || !m_model)
         return;
     const int n = qBound(1, maxResults, kMaxTotal);
 
@@ -196,7 +196,7 @@ void SearchBackend::beginSearch(int playlistStart, int playlistEnd, bool append)
 
 void SearchBackend::startPendingIfAny()
 {
-    if (!m_hasPending)
+    if (!m_hasPending || !m_model)
         return;
     m_hasPending = false;
     m_userCancelled = false;
@@ -215,6 +215,10 @@ void SearchBackend::startPendingIfAny()
 
 void SearchBackend::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
+    if (!m_model) {
+        setSearching(false);
+        return;
+    }
     // A new request arrived while we were running — launch it now.
     if (m_hasPending) {
         startPendingIfAny();

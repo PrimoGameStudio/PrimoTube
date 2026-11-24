@@ -42,7 +42,7 @@ QString ChannelBackend::channelVideosUrl(const QString &query)
 void ChannelBackend::openChannel(const QString &channelIdOrUrlOrHandle)
 {
     const QString input = channelIdOrUrlOrHandle.trimmed();
-    if (input.isEmpty())
+    if (input.isEmpty() || !m_model)
         return;
     // A bare UC… channel ID (24 chars starting with UC) is also accepted.
     QString canonical = normalizeChannelUrl(input);
@@ -260,6 +260,10 @@ void ChannelBackend::onHeaderFinished(int exitCode, QProcess::ExitStatus exitSta
 
 void ChannelBackend::onVideosFinished(int exitCode, QProcess::ExitStatus exitStatus)
 {
+    if (!m_model) {
+        setLoading(false);
+        return;
+    }
     if (m_hasPending) {
         m_hasPending = false;
         const QString next = m_pendingInput;

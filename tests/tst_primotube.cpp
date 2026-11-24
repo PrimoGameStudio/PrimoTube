@@ -310,6 +310,9 @@ private slots:
         QVERIFY(!ChannelBackend::isChannelUrl("https://www.youtube.com/watch?v=abc"));
         QVERIFY(!ChannelBackend::isChannelUrl(""));
         QVERIFY(!ChannelBackend::isChannelUrl("@handle with space"));
+        // Mixed-case scheme must not be double-prefixed with https://.
+        QCOMPARE(ChannelBackend::normalizeChannelUrl(QStringLiteral("HTTPS://www.youtube.com/@X/videos")),
+                 QStringLiteral("HTTPS://www.youtube.com/@X"));
         // URL allow-list for playback/download/details.
         QVERIFY(ChannelUtils::isAllowedVideoUrl("dQw4w9WgXcQ"));
         QVERIFY(ChannelUtils::isAllowedVideoUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
@@ -694,6 +697,11 @@ private slots:
             "{\"avatar\":{\"thumbnails\":[{\"url\":\"https:\\/\\/yt3.googleusercontent.com\\/xyz=s176-c-k\"}]}}");
         QCOMPARE(ChannelUtils::pickChannelAvatar(html2),
                  QString("https://yt3.googleusercontent.com/xyz=s176-c-k"));
+        // Unicode escapes decode once; a literal "\\u0041" stays literal.
+        const QString html3 = QStringLiteral(
+            "<meta property=\"og:description\" content=\"Caf\\u00e9 \\\\u0041\">");
+        QCOMPARE(ChannelUtils::pickChannelDescription(html3),
+                 QString::fromUtf8("Caf\xC3\xA9 \\u0041"));
         // Empty / unrelated HTML yields empty results (placeholder stays).
         QCOMPARE(ChannelUtils::pickChannelAvatar(QString()), QString());
         QCOMPARE(ChannelUtils::pickChannelAvatar(QStringLiteral("<html></html>")), QString());

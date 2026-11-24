@@ -96,17 +96,6 @@ ApplicationWindow {
 
     // Single forwarding rule for play requests from any page.
     function forwardPlayRequested(videoId, videoTitle, videoChannel, videoChannelId, videoChannelUrl, videoWatchUrl, durationString, duration, thumbnail, description) {
-        // Backwards compat: older call sites omit channel id/url (8-arg form
-        // where videoChannel is followed directly by watchUrl).
-        if (videoWatchUrl === undefined && videoChannelUrl !== undefined) {
-            description = thumbnail
-            thumbnail = duration
-            duration = durationString
-            durationString = videoWatchUrl
-            videoWatchUrl = videoChannelUrl
-            videoChannelUrl = ""
-            videoChannelId = ""
-        }
         root.openPlayerWindow(videoId, videoTitle, videoChannel, videoChannelId ?? "", videoChannelUrl ?? "", videoWatchUrl, durationString, duration, thumbnail, description ?? "")
     }
 
@@ -161,7 +150,6 @@ ApplicationWindow {
             id: dependencyBanner
             Layout.fillWidth: true
             Layout.preferredHeight: visible ? bannerLayout.implicitHeight + 16 : 0
-            Layout.topMargin: visible ? 0 : 0
             Layout.bottomMargin: 0
             color: theme.isDark ? "#5a4a15" : "#fff3cd"
             visible: !root.dependencyDismissed && dependencyChecker.missingMessage.length > 0
