@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QSettings>
 #include <QString>
 #include <QVector>
 #include "videomodel.h"
@@ -57,5 +56,4 @@ private:
 
     bool m_isFavorites;
     QVector<VideoItem> m_items;
-    mutable QSettings m_settings;
 };

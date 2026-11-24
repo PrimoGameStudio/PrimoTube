@@ -3,11 +3,13 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QtLogging>
+
+#include "durablejson.h"
 
 HistoryManager::HistoryManager(bool isFavorites, QObject *parent)
     : QAbstractListModel(parent)
     , m_isFavorites(isFavorites)
-    , m_settings()
 {
     load();
 }
@@ -138,14 +140,23 @@ bool HistoryManager::contains(const QString &videoId) const
 
 void HistoryManager::load()
 {
-    const QString key = m_isFavorites ? QStringLiteral("favoritesList") : QStringLiteral("historyList");
-    const QString jsonStr = m_settings.value(key).toString();
-    if (jsonStr.isEmpty())
+    const QString name = m_isFavorites ? QStringLiteral("favorites") : QStringLiteral("history");
+    const QString legacyKey = m_isFavorites ? QStringLiteral("favoritesList") : QStringLiteral("historyList");
+    QByteArray json = DurableJson::read(name, kMaxImportBytes);
+    bool migrating = false;
+    if (json.isEmpty()) {
+        json = DurableJson::legacyValue(legacyKey);
+        migrating = !json.isEmpty();
+    }
+    if (json.isEmpty())
         return;
 
-    QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
-    if (!doc.isArray())
+    QJsonParseError parseError{};
+    const QJsonDocument doc = QJsonDocument::fromJson(json, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isArray()) {
+        qWarning() << "HistoryManager: ignoring corrupt saved data in" << name;
         return;
+    }
 
     const int cap = m_isFavorites ? kMaxFavorites : kMaxHistory;
     m_items.clear();
@@ -170,6 +181,8 @@ void HistoryManager::load()
         m_items.append(item);
     }
     emit countChanged();
+    if (migrating)
+        save(); // one-time move off the shared QSettings store
 }
 
 void HistoryManager::save() const
@@ -189,9 +202,11 @@ void HistoryManager::save() const
         obj[QStringLiteral("channelUrl")] = item.channelUrl;
         arr.append(obj);
     }
-    QJsonDocument doc(arr);
-    const QString key = m_isFavorites ? QStringLiteral("favoritesList") : QStringLiteral("historyList");
-    m_settings.setValue(key, QString::fromUtf8(doc.toJson(QJsonDocument::Compact)));
+    const QByteArray bytes = QJsonDocument(arr).toJson(QJsonDocument::Compact);
+    const QString name = m_isFavorites ? QStringLiteral("favorites") : QStringLiteral("history");
+    QString error;
+    if (!DurableJson::write(name, bytes, &error))
+        qWarning() << "HistoryManager: could not save" << name << "-" << error;
 }
 
 QString HistoryManager::exportJson() const
@@ -218,14 +233,16 @@ bool HistoryManager::importJson(const QString &jsonStr)
 {
     if (jsonStr.size() > kMaxImportBytes)
         return false;
-    const QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
-    if (!doc.isArray())
+    QJsonParseError parseError{};
+    const QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isArray())
         return false;
+    // Stage and validate everything before touching the live model: a
+    // malformed import must never wipe existing history or favorites.
     const int cap = m_isFavorites ? kMaxFavorites : kMaxHistory;
-    beginResetModel();
-    m_items.clear();
+    QVector<VideoItem> staged;
     for (const auto &v : doc.array()) {
-        if (m_items.size() >= cap)
+        if (staged.size() >= cap)
             break;
         const QJsonObject obj = v.toObject();
         VideoItem item;
@@ -241,8 +258,14 @@ bool HistoryManager::importJson(const QString &jsonStr)
         item.description = obj.value(QStringLiteral("description")).toString().left(5000);
         item.channelId = obj.value(QStringLiteral("channelId")).toString().left(128);
         item.channelUrl = obj.value(QStringLiteral("channelUrl")).toString().left(2048);
-        m_items.append(item);
+        staged.append(item);
     }
+    // A non-empty file whose entries are all unusable is almost certainly
+    // the wrong format — do not wipe the live list because of it.
+    if (!doc.array().isEmpty() && staged.isEmpty())
+        return false;
+    beginResetModel();
+    m_items = staged;
     endResetModel();
     emit countChanged();
     save();

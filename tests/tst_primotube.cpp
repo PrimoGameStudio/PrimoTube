@@ -1,8 +1,13 @@
 #include <QtTest>
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QStandardPaths>
+#include <QTemporaryDir>
 #include <clocale>
+#include "../src/durablejson.h"
 #include "../src/settingsmanager.h"
 #include "../src/videomodel.h"
 #include "../src/dependencychecker.h"
@@ -26,18 +31,24 @@
 class TestPrimoTube : public QObject {
     Q_OBJECT
 private slots:
+    static void clearStores() {
+        QSettings().clear();
+        for (const char *name : {"history", "favorites", "subscriptions"})
+            QFile::remove(DurableJson::filePath(QString::fromLatin1(name)));
+    }
+
     void initTestCase() {
         setlocale(LC_NUMERIC, "C");
-        // Isolate QSettings from the real user config: SettingsManager and
-        // HistoryManager use the default QSettings (app org/name).
+        // Redirect both QSettings and the new JSON stores away from the
+        // user's real config, then clear anything left by earlier runs.
+        QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setOrganizationName(QStringLiteral("PrimoGameStudioTest"));
         QCoreApplication::setApplicationName(QStringLiteral("PrimoTubeTest"));
-        // Tests must not inherit or leak persisted state across runs.
-        QSettings().clear();
+        clearStores();
     }
 
     void cleanupTestCase() {
-        QSettings().clear();
+        clearStores();
     }
 
     void testSettingsManager() {
@@ -97,8 +108,10 @@ private slots:
         QVERIFY(!settings.trySetDownloadDirectory(""));
         QVERIFY(!settings.trySetDownloadDirectory("   "));
         QCOMPARE(settings.downloadDirectory(), before);
-        // A writable temp dir is accepted and persisted.
-        const QString tmp = QDir::tempPath() + QStringLiteral("/primotube-test-dl");
+        // A writable temp dir is accepted and persisted (and cleaned up).
+        QTemporaryDir tempDir;
+        QVERIFY(tempDir.isValid());
+        const QString tmp = tempDir.path();
         QVERIFY(settings.trySetDownloadDirectory(tmp));
         QCOMPARE(settings.downloadDirectory(), tmp);
         {
@@ -395,6 +408,74 @@ private slots:
         QCOMPARE(subs.count(), 0);
     }
 
+    void testAtomicFilesAndLegacyMigration() {
+        const QString historyPath = DurableJson::filePath(QStringLiteral("history"));
+        const QString subsPath = DurableJson::filePath(QStringLiteral("subscriptions"));
+        QFile::remove(historyPath);
+        QFile::remove(subsPath);
+
+        // Legacy QSettings data is picked up and moved to the new store.
+        QSettings settings;
+        settings.setValue(QStringLiteral("historyList"),
+                          QStringLiteral("[{\"videoId\":\"legacy1\",\"title\":\"Legacy\"}]"));
+        settings.setValue(QStringLiteral("subscriptionsList"),
+                          QStringLiteral("[{\"channelId\":\"UCLEGACY1\",\"title\":\"Legacy\"}]"));
+        settings.sync();
+        {
+            HistoryManager history(false);
+            QCOMPARE(history.rowCount(), 1);
+            QVERIFY(history.contains(QStringLiteral("legacy1")));
+            SubscriptionManager subs;
+            QCOMPARE(subs.rowCount(), 1);
+            QVERIFY(subs.contains(QStringLiteral("UCLEGACY1")));
+        }
+        QVERIFY(QFileInfo::exists(historyPath));
+        QVERIFY(QFileInfo::exists(subsPath));
+#ifdef Q_OS_UNIX
+        const QFile::Permissions wideBits = QFile::ReadGroup | QFile::WriteGroup | QFile::ExeGroup
+                                          | QFile::ReadOther | QFile::WriteOther | QFile::ExeOther;
+        QCOMPARE(int(QFileInfo(historyPath).permissions() & wideBits), 0);
+        QCOMPARE(int(QFileInfo(subsPath).permissions() & wideBits), 0);
+#endif
+        // The new store wins over the legacy key on the next load.
+        settings.setValue(QStringLiteral("historyList"), QStringLiteral("[]"));
+        settings.sync();
+        {
+            HistoryManager history(false);
+            QCOMPARE(history.rowCount(), 1);
+            QVERIFY(history.contains(QStringLiteral("legacy1")));
+        }
+        settings.remove(QStringLiteral("historyList"));
+        settings.remove(QStringLiteral("subscriptionsList"));
+        settings.sync();
+        QFile::remove(historyPath);
+        QFile::remove(subsPath);
+    }
+
+    void testInvalidImportPreservesData() {
+        {
+            HistoryManager history(false);
+            history.clear();
+            history.addItem(QStringLiteral("keep1"), QStringLiteral("Keep"), QString(), QString(),
+                            QString(), QString(), 0);
+            QVERIFY(!history.importJson(QStringLiteral("{not-an-array")));
+            QVERIFY(!history.importJson(QStringLiteral("[{\"title\":\"no id\"}]")));
+            QCOMPARE(history.rowCount(), 1);
+            QVERIFY(history.contains(QStringLiteral("keep1")));
+            history.clear();
+        }
+        {
+            SubscriptionManager subs;
+            subs.clear();
+            subs.subscribe(QStringLiteral("UC999"), QStringLiteral("Keep"));
+            QVERIFY(!subs.importJson(QStringLiteral("{not-an-array")));
+            QVERIFY(!subs.importJson(QStringLiteral("[{\"title\":\"no id\"}]")));
+            QCOMPARE(subs.rowCount(), 1);
+            QVERIFY(subs.contains(QStringLiteral("UC999")));
+            subs.clear();
+        }
+    }
+
     void testQueueEnqueueModelSkipsEmpty() {
         VideoModel vmodel;
         VideoItem good;
@@ -417,6 +498,54 @@ private slots:
         QCOMPARE(queue.rowCount(), 2);
         QCOMPARE(queue.data(queue.index(0, 0), QueueManager::VideoIdRole).toString(), QString("good1"));
         QCOMPARE(queue.data(queue.index(1, 0), QueueManager::VideoIdRole).toString(), QString("good2"));
+        queue.clear();
+    }
+
+    void testShuffleModel() {
+        VideoModel feed;
+        QStringList expected;
+        for (int i = 0; i < 12; ++i) {
+            VideoItem item;
+            item.videoId = QStringLiteral("shuffle%1").arg(i);
+            item.title = QStringLiteral("Video %1").arg(i);
+            feed.addVideo(item);
+            expected.append(item.videoId);
+        }
+        VideoItem invalid;
+        invalid.title = QStringLiteral("No id");
+        feed.addVideo(invalid);
+
+        QueueManager queue;
+        // No-op on an empty model.
+        VideoModel empty;
+        QSignalSpy emptySpy(&queue, &QueueManager::itemRequested);
+        queue.shuffleModel(&empty);
+        QCOMPARE(queue.rowCount(), 0);
+        QCOMPARE(emptySpy.count(), 0);
+
+        QSignalSpy requestSpy(&queue, &QueueManager::itemRequested);
+        queue.shuffleModel(&feed);
+        QCOMPARE(queue.rowCount(), expected.size());
+        QCOMPARE(queue.currentIndex(), 0);
+        QCOMPARE(requestSpy.count(), 1);
+
+        // The shuffled queue is a permutation of the valid feed entries.
+        QStringList actual;
+        for (int i = 0; i < queue.rowCount(); ++i)
+            actual.append(queue.data(queue.index(i, 0), QueueManager::VideoIdRole).toString());
+        actual.sort();
+        QStringList sortedExpected = expected;
+        sortedExpected.sort();
+        QCOMPARE(actual, sortedExpected);
+
+        const QString requested = requestSpy.at(0).at(0).toString();
+        QVERIFY(expected.contains(requested));
+        QCOMPARE(queue.currentItem().value(QStringLiteral("videoId")).toString(), requested);
+
+        // A pre-existing queue is replaced, not appended to.
+        queue.shuffleModel(&feed);
+        QCOMPARE(queue.rowCount(), expected.size());
+        QCOMPARE(requestSpy.count(), 2);
         queue.clear();
     }
 

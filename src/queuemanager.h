@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QList>
 #include <QVector>
 #include <QString>
 #include <QVariantMap>
@@ -61,6 +62,9 @@ public:
     Q_INVOKABLE bool advance();
     Q_INVOKABLE QVariantMap currentItem() const;
     Q_INVOKABLE void enqueueModel(VideoModel *model);
+    // Replaces the queue with a shuffled copy of the model and starts the
+    // first item (emits itemRequested, handled by Main.qml).
+    Q_INVOKABLE void shuffleModel(VideoModel *model);
 
 signals:
     void currentIndexChanged();
@@ -70,6 +74,9 @@ signals:
                        const QString &durationString, int duration, const QString &thumbnail, const QString &description);
 
 private:
+    // Shared validation/extraction for enqueueModel() and shuffleModel().
+    static QList<VideoItem> collectValidItems(VideoModel *model);
+
     QVector<VideoItem> m_items;
     int m_currentIndex = -1;
 

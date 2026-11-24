@@ -155,6 +155,13 @@ Page {
                 visible: homeFeedModel.count > 0 && !homeFeedBackend.loading
                 onClicked: queueModel.enqueueModel(homeFeedModel)
             }
+            Button {
+                text: qsTr("🔀 Shuffle All")
+                visible: homeFeedModel.count > 0 && !homeFeedBackend.loading
+                ToolTip.text: qsTr("Replace the queue with these videos in random order and play the first one")
+                ToolTip.visible: hovered
+                onClicked: queueModel.shuffleModel(homeFeedModel)
+            }
         }
 
         RowLayout {

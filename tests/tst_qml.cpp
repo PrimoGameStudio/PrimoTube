@@ -1,11 +1,14 @@
 #include <QtQuickTest>
 #include <QCoreApplication>
+#include <QFile>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QSettings>
+#include <QStandardPaths>
 #include <clocale>
 
 #include "clipboardhelper.h"
+#include "durablejson.h"
 #include "historymanager.h"
 #include "queuemanager.h"
 #include "subscriptionmanager.h"
@@ -28,7 +31,10 @@ public:
 public slots:
     void applicationAvailable()
     {
+        QStandardPaths::setTestModeEnabled(true);
         QSettings().clear();
+        for (const char *name : {"history", "favorites", "subscriptions"})
+            QFile::remove(DurableJson::filePath(QString::fromLatin1(name)));
     }
 
     void qmlEngineAvailable(QQmlEngine *engine)
@@ -45,6 +51,8 @@ public slots:
     void cleanupTestCase()
     {
         QSettings().clear();
+        for (const char *name : {"history", "favorites", "subscriptions"})
+            QFile::remove(DurableJson::filePath(QString::fromLatin1(name)));
     }
 };
 

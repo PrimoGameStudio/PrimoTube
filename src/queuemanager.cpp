@@ -1,5 +1,8 @@
 #include "queuemanager.h"
 
+#include <QRandomGenerator>
+#include <algorithm>
+
 QueueManager::QueueManager(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -217,13 +220,13 @@ QVariantMap QueueManager::currentItem() const
     return map;
 }
 
-void QueueManager::enqueueModel(VideoModel *model)
+QList<VideoItem> QueueManager::collectValidItems(VideoModel *model)
 {
-    if (!model || model->rowCount() == 0)
-        return;
-    // Collect valid items first: beginInsertRows must announce exactly the
-    // number of rows actually appended (skipping empty videoId entries).
     QList<VideoItem> valid;
+    if (!model)
+        return valid;
+    // beginInsertRows must announce exactly the number of rows actually
+    // appended (skipping empty videoId entries).
     for (int i = 0; i < model->rowCount(); ++i) {
         QModelIndex idx = model->index(i, 0);
         VideoItem item;
@@ -240,6 +243,14 @@ void QueueManager::enqueueModel(VideoModel *model)
         if (!item.videoId.isEmpty())
             valid.append(item);
     }
+    return valid;
+}
+
+void QueueManager::enqueueModel(VideoModel *model)
+{
+    if (!model || model->rowCount() == 0)
+        return;
+    QList<VideoItem> valid = collectValidItems(model);
     if (valid.isEmpty() || isFull())
         return;
     // Respect the queue cap: only take what fits.
@@ -258,4 +269,40 @@ void QueueManager::enqueueModel(VideoModel *model)
         emit currentIndexChanged();
     }
     emit queueChanged();
+}
+
+void QueueManager::shuffleModel(VideoModel *model)
+{
+    QList<VideoItem> items = collectValidItems(model);
+    if (items.isEmpty())
+        return;
+    if (items.size() > kMaxQueue)
+        items = items.mid(0, kMaxQueue);
+
+    // "Shuffle All" replaces the queue with the whole feed in random order.
+    if (!m_items.isEmpty()) {
+        beginResetModel();
+        m_items.clear();
+        m_currentIndex = -1;
+        endResetModel();
+        emit currentIndexChanged();
+        emit queueChanged();
+    }
+
+    // Fisher-Yates with Qt's per-thread generator (no srand/time seed).
+    for (int i = items.size() - 1; i > 0; --i) {
+        const int j = QRandomGenerator::global()->bounded(i + 1);
+        std::swap(items[i], items[j]);
+    }
+
+    const int start = m_items.size();
+    beginInsertRows(QModelIndex(), start, start + items.size() - 1);
+    for (const VideoItem &item : items)
+        m_items.append(item);
+    endInsertRows();
+    emit queueChanged();
+
+    // Main.qml handles itemRequested via openPlayerWindow, so the shuffled
+    // queue is preserved and the first item starts playing immediately.
+    playIndex(0);
 }

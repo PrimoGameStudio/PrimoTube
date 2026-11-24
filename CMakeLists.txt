@@ -36,6 +36,8 @@ qt_add_executable(appPrimoTube
     src/clipboardhelper.cpp
     src/dependencychecker.h
     src/dependencychecker.cpp
+    src/durablejson.h
+    src/durablejson.cpp
     src/settingsmanager.h
     src/settingsmanager.cpp
     src/historymanager.h

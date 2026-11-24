@@ -56,6 +56,10 @@ signals:
     void forceFallbackPlayerChanged();
 
 private:
+    // Writes a setting, forces it to disk and reports failures. Also keeps
+    // the config file owner-only (it can contain a local download path).
+    void persist(const QString &key, const QVariant &value);
+
     QSettings m_settings;
     QString m_downloadDirectory;
     int m_maxResults;

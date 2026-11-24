@@ -10,6 +10,7 @@ add_executable(tst_primotube
     ../src/settingsmanager.cpp
     ../src/videomodel.cpp
     ../src/dependencychecker.cpp
+    ../src/durablejson.cpp
     ../src/playbackresolver.cpp
     ../src/searchbackend.cpp
     ../src/historymanager.cpp
@@ -53,6 +54,7 @@ if(TARGET Qt6::QuickTest)
         tst_qml.cpp
         ../src/clipboardhelper.cpp
         ../src/channelutils.cpp
+        ../src/durablejson.cpp
         ../src/historymanager.cpp
         ../src/subscriptionmanager.cpp
         ../src/videomodel.cpp

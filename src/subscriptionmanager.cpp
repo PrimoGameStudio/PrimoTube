@@ -3,10 +3,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QtLogging>
+
+#include "durablejson.h"
 
 SubscriptionManager::SubscriptionManager(QObject *parent)
     : QAbstractListModel(parent)
-    , m_settings()
 {
     load();
 }
@@ -169,12 +171,20 @@ void SubscriptionManager::updateAvatar(const QString &channelIdOrUrl, const QStr
 
 void SubscriptionManager::load()
 {
-    const QString jsonStr = m_settings.value(QStringLiteral("subscriptionsList")).toString();
-    if (jsonStr.isEmpty())
+    QByteArray json = DurableJson::read(QStringLiteral("subscriptions"), kMaxImportBytes);
+    bool migrating = false;
+    if (json.isEmpty()) {
+        json = DurableJson::legacyValue(QStringLiteral("subscriptionsList"));
+        migrating = !json.isEmpty();
+    }
+    if (json.isEmpty())
         return;
-    const QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
-    if (!doc.isArray())
+    QJsonParseError parseError{};
+    const QJsonDocument doc = QJsonDocument::fromJson(json, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isArray()) {
+        qWarning() << "SubscriptionManager: ignoring corrupt saved subscriptions";
         return;
+    }
     m_items.clear();
     for (const auto &v : doc.array()) {
         if (m_items.size() >= kMaxSubscriptions)
@@ -205,6 +215,8 @@ void SubscriptionManager::load()
             m_items.append(item);
     }
     emit countChanged();
+    if (migrating)
+        save(); // one-time move off the shared QSettings store
 }
 
 void SubscriptionManager::save() const
@@ -219,8 +231,10 @@ void SubscriptionManager::save() const
         obj[QStringLiteral("avatar")] = item.avatarUrl;
         arr.append(obj);
     }
-    m_settings.setValue(QStringLiteral("subscriptionsList"),
-                  QString::fromUtf8(QJsonDocument(arr).toJson(QJsonDocument::Compact)));
+    const QByteArray bytes = QJsonDocument(arr).toJson(QJsonDocument::Compact);
+    QString error;
+    if (!DurableJson::write(QStringLiteral("subscriptions"), bytes, &error))
+        qWarning() << "SubscriptionManager: could not save subscriptions -" << error;
 }
 
 QString SubscriptionManager::exportJson() const
@@ -242,13 +256,14 @@ bool SubscriptionManager::importJson(const QString &jsonStr)
 {
     if (jsonStr.size() > kMaxImportBytes)
         return false;
-    const QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8());
-    if (!doc.isArray())
+    QJsonParseError parseError{};
+    const QJsonDocument doc = QJsonDocument::fromJson(jsonStr.toUtf8(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !doc.isArray())
         return false;
-    beginResetModel();
-    m_items.clear();
+    // Stage into a temporary vector: the live list must survive a bad import.
+    QVector<ChannelItem> staged;
     for (const auto &v : doc.array()) {
-        if (m_items.size() >= kMaxSubscriptions)
+        if (staged.size() >= kMaxSubscriptions)
             break;
         const QJsonObject obj = v.toObject();
         ChannelItem item;
@@ -260,7 +275,7 @@ bool SubscriptionManager::importJson(const QString &jsonStr)
         if (keyOf(item).isEmpty())
             continue;
         bool dup = false;
-        for (const auto &cur : m_items) {
+        for (const auto &cur : staged) {
             const bool sameId = !item.channelId.isEmpty() && cur.channelId == item.channelId;
             const bool sameHandle = !item.handle.isEmpty() && !cur.handle.isEmpty()
                 && cur.handle.compare(item.handle, Qt::CaseInsensitive) == 0;
@@ -272,8 +287,14 @@ bool SubscriptionManager::importJson(const QString &jsonStr)
             }
         }
         if (!dup)
-            m_items.append(item);
+            staged.append(item);
     }
+    // A non-empty file whose entries are all unusable is almost certainly
+    // the wrong format — do not wipe the live list because of it.
+    if (!doc.array().isEmpty() && staged.isEmpty())
+        return false;
+    beginResetModel();
+    m_items = staged;
     endResetModel();
     emit countChanged();
     save();

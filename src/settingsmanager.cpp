@@ -2,7 +2,9 @@
 
 #include <QStandardPaths>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QtLogging>
 
 SettingsManager::SettingsManager(QObject *parent)
     : QObject(parent)
@@ -39,7 +41,7 @@ bool SettingsManager::trySetDownloadDirectory(const QString &dir)
     if (!d.mkpath(QStringLiteral(".")) || !QFileInfo(trimmed).isWritable())
         return false;
     m_downloadDirectory = trimmed;
-    m_settings.setValue(QStringLiteral("downloadDirectory"), trimmed);
+    persist(QStringLiteral("downloadDirectory"), trimmed);
     emit downloadDirectoryChanged();
     return true;
 }
@@ -62,7 +64,7 @@ void SettingsManager::setMaxResults(int results)
     if (m_maxResults == bounded)
         return;
     m_maxResults = bounded;
-    m_settings.setValue(QStringLiteral("maxResults"), bounded);
+    persist(QStringLiteral("maxResults"), bounded);
     emit maxResultsChanged();
 }
 
@@ -77,7 +79,7 @@ void SettingsManager::setVolume(double vol)
     if (qFuzzyCompare(m_volume + 1.0, bounded + 1.0))
         return;
     m_volume = bounded;
-    m_settings.setValue(QStringLiteral("volume"), bounded);
+    persist(QStringLiteral("volume"), bounded);
     emit volumeChanged();
 }
 
@@ -96,7 +98,7 @@ void SettingsManager::setQualityCap(const QString &cap)
     if (!qualityCapOptions().contains(cap) || m_qualityCap == cap)
         return;
     m_qualityCap = cap;
-    m_settings.setValue(QStringLiteral("qualityCap"), cap);
+    persist(QStringLiteral("qualityCap"), cap);
     emit qualityCapChanged();
 }
 
@@ -127,7 +129,7 @@ void SettingsManager::setTheme(const QString &t)
     if (!themeOptions().contains(t) || m_theme == t)
         return;
     m_theme = t;
-    m_settings.setValue(QStringLiteral("theme"), t);
+    persist(QStringLiteral("theme"), t);
     emit themeChanged();
 }
 
@@ -141,6 +143,18 @@ void SettingsManager::setForceFallbackPlayer(bool force)
     if (m_forceFallbackPlayer == force)
         return;
     m_forceFallbackPlayer = force;
-    m_settings.setValue(QStringLiteral("forceFallbackPlayer"), force);
+    persist(QStringLiteral("forceFallbackPlayer"), force);
     emit forceFallbackPlayerChanged();
+}
+
+void SettingsManager::persist(const QString &key, const QVariant &value)
+{
+    m_settings.setValue(key, value);
+    m_settings.sync();
+    if (m_settings.status() != QSettings::NoError)
+        qWarning() << "SettingsManager: could not persist" << key
+                   << "(QSettings status" << m_settings.status() << ")";
+    const QString path = m_settings.fileName();
+    if (!path.isEmpty())
+        QFile::setPermissions(path, QFile::ReadOwner | QFile::WriteOwner);
 }

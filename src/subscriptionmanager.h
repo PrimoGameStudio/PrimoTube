@@ -1,7 +1,6 @@
 #pragma once
 
 #include <QAbstractListModel>
-#include <QSettings>
 #include <QString>
 #include <QVariantList>
 #include <QVector>
@@ -66,5 +65,4 @@ private:
     void save() const;
 
     QVector<ChannelItem> m_items;
-    mutable QSettings m_settings;
 };
