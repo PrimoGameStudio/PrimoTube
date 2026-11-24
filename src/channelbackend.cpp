@@ -374,10 +374,19 @@ void ChannelBackend::onVideosFinished(int exitCode, QProcess::ExitStatus exitSta
 void ChannelBackend::onProcessError(QProcess::ProcessError error)
 {
     Q_UNUSED(error)
-    const bool headerFailed = m_headerProcess->error() == QProcess::FailedToStart;
-    const bool videosFailed = m_videosProcess->error() == QProcess::FailedToStart;
-    if (!headerFailed && !videosFailed)
+    QProcess *failed = qobject_cast<QProcess *>(sender());
+    if (!failed)
         return;
+    // QProcess::error() returns the *last* error and keeps it, so checking
+    // both processes misclassifies a later crash (from cancel()'s kill())
+    // as "yt-dlp not installed". Only act on the sender's FailedToStart.
+    if (failed->error() != QProcess::FailedToStart || !m_loading)
+        return;
+    // A failed start leaves the sibling process running. Stop it so its
+    // finished() cannot emit channelLoaded() for an abandoned request.
+    QProcess *other = (failed == m_headerProcess) ? m_videosProcess : m_headerProcess;
+    if (other->state() != QProcess::NotRunning)
+        other->kill();
     if (m_hasPending) {
         m_hasPending = false;
         const QString next = m_pendingInput;

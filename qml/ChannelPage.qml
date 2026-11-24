@@ -95,8 +95,8 @@ Page {
                 elide: Text.ElideRight
             }
             ToolButton {
-                // subVersion forces re-evaluation when subscriptions change;
-                // contains() alone has no change signal dependency.
+                // count is a NOTIFY property: referencing it forces the
+                // contains() call to re-evaluate after subscribe/unsubscribe.
                 property int subVersion: subscriptionsModel.count
                 text: {
                     subVersion // track dependency
@@ -254,7 +254,7 @@ Page {
             }
             Button {
                 text: qsTr("▶ Play All")
-                visible: channelVideoModel.rowCount() > 0 && !channelBackend.loading
+                visible: channelVideoModel.count > 0 && !channelBackend.loading
                 onClicked: queueModel.enqueueModel(channelVideoModel)
             }
         }

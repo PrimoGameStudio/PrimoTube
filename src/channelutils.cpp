@@ -83,6 +83,26 @@ QString ytdlpExecutable()
     return QStringLiteral("yt-dlp");
 }
 
+bool isAllowedPlaybackTarget(const QString &target)
+{
+    const QString s = target.trimmed();
+    if (s.isEmpty())
+        return false;
+    if (s.contains(QStringLiteral("://"))) {
+        const QUrl url(s);
+        if (!url.isValid())
+            return false;
+        const QString scheme = url.scheme().toLower();
+        if (scheme != QLatin1String("http") && scheme != QLatin1String("https"))
+            return false;
+        return isYouTubeHost(url.host());
+    }
+    // Canonical YouTube video id (11 chars). Rejects option-like strings and
+    // other schemeless specs that a permissive check would let through.
+    static const QRegularExpression idRe(QStringLiteral("^[A-Za-z0-9_-]{11}$"));
+    return idRe.match(s).hasMatch();
+}
+
 bool isYouTubeHost(const QString &host)
 {
     QString h = host.trimmed().toLower();

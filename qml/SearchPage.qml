@@ -116,13 +116,13 @@ Page {
             visible: tabBar.currentIndex === 0
             Label {
                 Layout.fillWidth: true
-                text: homeFeedModel.rowCount() > 0 ? qsTr("Latest from your subscriptions (%1)").arg(homeFeedModel.rowCount()) : qsTr("Home")
+                text: homeFeedModel.count > 0 ? qsTr("Latest from your subscriptions (%1)").arg(homeFeedModel.count) : qsTr("Home")
                 color: effectiveTheme.textColor
                 font.bold: true
             }
             Button {
                 text: homeFeedBackend.loading ? qsTr("Stop") : qsTr("Refresh")
-                enabled: homeFeedBackend.loading || subscriptionsModel.rowCount() > 0
+                enabled: homeFeedBackend.loading || subscriptionsModel.count > 0
                 ToolTip.text: homeFeedBackend.loading && homeFeedBackend.channelCount > 0
                     ? qsTr("Loading channel %1 of %2…").arg(homeFeedBackend.channelsDone + 1).arg(homeFeedBackend.channelCount)
                     : qsTr("Fetch the latest videos (3 per channel)")
@@ -152,7 +152,7 @@ Page {
             }
             Button {
                 text: qsTr("▶ Play All")
-                visible: homeFeedModel.rowCount() > 0 && !homeFeedBackend.loading
+                visible: homeFeedModel.count > 0 && !homeFeedBackend.loading
                 onClicked: queueModel.enqueueModel(homeFeedModel)
             }
         }
@@ -173,7 +173,7 @@ Page {
             }
             Button {
                 text: qsTr("▶ Play All")
-                visible: videoModel.rowCount() > 0 && !searchBackend.searching
+                visible: videoModel.count > 0 && !searchBackend.searching
                 onClicked: queueModel.enqueueModel(videoModel)
             }
         }
@@ -183,7 +183,7 @@ Page {
             visible: tabBar.currentIndex > 1 && tabBar.currentIndex < 4
             Label {
                 Layout.fillWidth: true
-                text: tabBar.currentIndex === 2 ? qsTr("Recent Watch History (%1)").arg(historyModel.rowCount()) : qsTr("Favorite Videos (%1)").arg(favoritesModel.rowCount())
+                text: tabBar.currentIndex === 2 ? qsTr("Recent Watch History (%1)").arg(historyModel.count) : qsTr("Favorite Videos (%1)").arg(favoritesModel.count)
                 color: effectiveTheme.textColor
                 font.bold: true
             }
@@ -203,13 +203,13 @@ Page {
             visible: tabBar.currentIndex === 4
             Label {
                 Layout.fillWidth: true
-                text: qsTr("Subscribed Channels (%1)").arg(subscriptionsModel.rowCount())
+                text: qsTr("Subscribed Channels (%1)").arg(subscriptionsModel.count)
                 color: effectiveTheme.textColor
                 font.bold: true
             }
             Button {
                 text: qsTr("Clear All")
-                visible: subscriptionsModel.rowCount() > 0
+                visible: subscriptionsModel.count > 0
                 onClicked: subscriptionsModel.clear()
             }
         }
@@ -239,7 +239,7 @@ Page {
                     anchors.centerIn: parent
                     visible: homeFeedView.count === 0
                     text: {
-                        if (subscriptionsModel.rowCount() === 0) return qsTr("No subscribed channels yet.\nClick a channel name or paste a channel link to subscribe,\nthen press Refresh here.")
+                        if (subscriptionsModel.count === 0) return qsTr("No subscribed channels yet.\nClick a channel name or paste a channel link to subscribe,\nthen press Refresh here.")
                         if (homeFeedBackend.loading) return ""
                         if (homeFeedBackend.statusText.length > 0) return homeFeedBackend.statusText
                         return qsTr("Press Refresh to load the latest videos\nfrom your subscriptions (3 per channel).")

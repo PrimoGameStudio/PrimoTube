@@ -32,6 +32,12 @@ private slots:
         // HistoryManager use the default QSettings (app org/name).
         QCoreApplication::setOrganizationName(QStringLiteral("PrimoGameStudioTest"));
         QCoreApplication::setApplicationName(QStringLiteral("PrimoTubeTest"));
+        // Tests must not inherit or leak persisted state across runs.
+        QSettings().clear();
+    }
+
+    void cleanupTestCase() {
+        QSettings().clear();
     }
 
     void testSettingsManager() {
@@ -227,11 +233,15 @@ private slots:
 
     void testMpvControllerInit() {
         MpvController mpv;
-        // Must not crash even in headless CI; availability reflects libmpv.
-        // available() is a valid bool; lastError is a valid string.
-        const bool avail = mpv.available();
-        QVERIFY(avail == true || avail == false);
-        QVERIFY(mpv.lastError().isEmpty() || !mpv.lastError().isEmpty());
+        // Must not crash even in headless CI, and the cached state must be
+        // internally consistent regardless of whether libmpv is available.
+        QCOMPARE(mpv.playing(), false);
+        QCOMPARE(mpv.paused(), false);
+        QCOMPARE(mpv.loading(), false);
+        QVERIFY(mpv.lastError().isEmpty());
+        QCOMPARE(mpv.subtitleId(), -1);
+        QCOMPARE(mpv.audioId(), -1);
+        QVERIFY(mpv.volume() >= 0.0 && mpv.volume() <= 1.0);
         // No-ops when idle — must not crash.
         mpv.stop();
         mpv.seek(10);
@@ -317,6 +327,72 @@ private slots:
         QCOMPARE(SettingsManager::urlToLocalFile(QUrl(QStringLiteral("file:///tmp/a%20b"))),
                  QString("/tmp/a b"));
         QVERIFY(!ChannelUtils::ytdlpExecutable().isEmpty());
+    }
+
+    void testPlaybackTargetValidator() {
+        QVERIFY(ChannelUtils::isAllowedPlaybackTarget(QStringLiteral("dQw4w9WgXcQ")));
+        QVERIFY(ChannelUtils::isAllowedPlaybackTarget(
+            QStringLiteral("https://www.youtube.com/watch?v=dQw4w9WgXcQ")));
+        QVERIFY(ChannelUtils::isAllowedPlaybackTarget(
+            QStringLiteral("https://youtu.be/dQw4w9WgXcQ")));
+        QVERIFY(!ChannelUtils::isAllowedPlaybackTarget(QStringLiteral("file:///etc/passwd")));
+        QVERIFY(!ChannelUtils::isAllowedPlaybackTarget(
+            QStringLiteral("http://169.254.169.254/latest/meta-data/")));
+        QVERIFY(!ChannelUtils::isAllowedPlaybackTarget(
+            QStringLiteral("https://youtube.com.evil.com/watch?v=x")));
+        QVERIFY(!ChannelUtils::isAllowedPlaybackTarget(QStringLiteral("javascript:alert(1)")));
+        QVERIFY(!ChannelUtils::isAllowedPlaybackTarget(QStringLiteral("--ytdl-raw-options=x")));
+        QVERIFY(!ChannelUtils::isAllowedPlaybackTarget(QString()));
+    }
+
+    void testDisallowedUrlsRejectedBeforeProcessStart() {
+        const QStringList bad{
+            QStringLiteral("file:///etc/passwd"),
+            QStringLiteral("http://169.254.169.254/latest/meta-data/"),
+            QStringLiteral("https://youtube.com.evil.com/watch?v=x"),
+        };
+        for (const QString &url : bad) {
+            PlaybackResolver resolver;
+            QSignalSpy resolveSpy(&resolver, &PlaybackResolver::resolveError);
+            resolver.resolve(url);
+            QCOMPARE(resolveSpy.count(), 1);
+            QVERIFY(!resolver.resolving());
+
+            DownloadBackend download;
+            QSignalSpy downloadSpy(&download, &DownloadBackend::downloadError);
+            download.download(url);
+            QCOMPARE(downloadSpy.count(), 1);
+            QVERIFY(!download.downloading());
+        }
+    }
+
+    void testSchemelessListQueryNotTreatedAsDirect() {
+        // A schemeless non-YouTube URL containing "list=" must stay search
+        // text; it must not be handed to yt-dlp as a URL spec.
+        QVERIFY(!SearchBackend::isDirectQuery(QStringLiteral("www.evil.com/x?list=abc")));
+        QVERIFY(!SearchBackend::isDirectQuery(QStringLiteral("localhost:8080/x?list=abc")));
+        QVERIFY(SearchBackend::isDirectQuery(
+            QStringLiteral("www.youtube.com/playlist?list=PL1234567890")));
+    }
+
+    void testReactiveCountProperties() {
+        HistoryManager history;
+        QSignalSpy historySpy(&history, &HistoryManager::countChanged);
+        const int before = history.count();
+        history.addItem(QStringLiteral("id1"), QStringLiteral("Title"), QString(), QString(),
+                        QString(), QString(), 0);
+        QCOMPARE(history.count(), before + 1);
+        QVERIFY(historySpy.count() >= 1);
+        history.clear();
+        QCOMPARE(history.count(), 0);
+
+        SubscriptionManager subs;
+        QSignalSpy subsSpy(&subs, &SubscriptionManager::countChanged);
+        subs.subscribe(QStringLiteral("UC1234567890123456789012"), QStringLiteral("Channel"));
+        QCOMPARE(subs.count(), 1);
+        QVERIFY(subsSpy.count() >= 1);
+        subs.clear();
+        QCOMPARE(subs.count(), 0);
     }
 
     void testQueueEnqueueModelSkipsEmpty() {
@@ -778,36 +854,35 @@ private slots:
         QCOMPARE(queue.hasQueue(), false);
         QCOMPARE(queue.currentIndex(), -1);
 
-        // Test advance when currentIndex is -1 (should advance to 0 if queue has items)
+        // Only playIndex()/advance() emit itemRequested. A plain enqueue or
+        // setCurrentIndex must not: Main.qml drives playback itself and a
+        // duplicate request would restart the video.
+        QSignalSpy itemSpy(&queue, &QueueManager::itemRequested);
         queue.enqueue("vidA", "Title A", "Chan", "thumb", "url", "1:00", 60);
         queue.enqueue("vidB", "Title B", "Chan", "thumb", "url", "2:00", 120);
-        // Force currentIndex to -1 manually or via removal/clear simulation
-        queue.clear();
-        queue.enqueue("vidA", "Title A", "Chan", "thumb", "url", "1:00", 60);
-        queue.enqueue("vidB", "Title B", "Chan", "thumb", "url", "2:00", 120);
-        // If we set or simulate index recovery, or test advance from start:
-        // Actually when queue is enqueued on empty, currentIndex becomes 0.
-        // Let's test advancing from 0 to 1:
+        QCOMPARE(itemSpy.count(), 0);
+        QCOMPARE(queue.indexOfVideo("vidA"), 0);
+        QCOMPARE(queue.indexOfVideo("vidB"), 1);
+        QCOMPARE(queue.indexOfVideo("missing"), -1);
         QCOMPARE(queue.currentIndex(), 0);
-        QVERIFY(queue.advance());
-        QCOMPARE(queue.currentIndex(), 1);
+        queue.setCurrentIndex(1);
+        QCOMPARE(itemSpy.count(), 0);
         QCOMPARE(queue.currentItem().value("videoId").toString(), QString("vidB"));
 
-        queue.clear();
-        QCOMPARE(queue.rowCount(), 0);
-
-        // Test first video played on empty queue gets added
-        if (queue.count() == 0) {
-            queue.enqueue("play1", "First Played", "Chan", "thumb", "url", "1:00", 60);
-        }
-        QCOMPARE(queue.rowCount(), 1);
+        queue.playIndex(0);
+        QCOMPARE(itemSpy.count(), 1);
         QCOMPARE(queue.currentIndex(), 0);
-        QCOMPARE(queue.currentItem().value("videoId").toString(), QString("play1"));
+        QVERIFY(queue.advance());
+        QCOMPARE(itemSpy.count(), 2);
+        QCOMPARE(queue.currentIndex(), 1);
+        QVERIFY(!queue.advance());
+        QCOMPARE(itemSpy.count(), 2);
 
+        queue.removeAt(1);
+        QCOMPARE(queue.currentIndex(), 0);
         queue.clear();
-        QCOMPARE(queue.rowCount(), 0);
-        QCOMPARE(queue.hasQueue(), false);
         QCOMPARE(queue.currentIndex(), -1);
+        QCOMPARE(queue.indexOfVideo("vidA"), -1);
     }
 };
 

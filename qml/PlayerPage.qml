@@ -39,12 +39,9 @@ Page {
     function advanceQueue() {
         if (!page.autoPlay)
             return
-        if (queueModel.advance()) {
-            var item = queueModel.currentItem()
-            if (item && item.videoId && playerWindow) {
-                playerWindow.openVideo(item.videoId, item.title, item.channel, item.channelId ?? "", item.channelUrl ?? "", item.watchUrl, item.durationString ?? "", item.duration ?? 0, item.thumbnail ?? "", item.description ?? "")
-            }
-        }
+        // QueueManager::itemRequested is handled in Main.qml, which routes it
+        // through openPlayerWindow like any other play request.
+        queueModel.advance()
     }
 
     function maybeAddHistory() {
@@ -297,10 +294,10 @@ Page {
     Connections {
         target: settingsManager
         function onVolumeChanged() {
+            // The fallback player's AudioOutput.volume follows this via the
+            // Binding below; only mpv needs an explicit push.
             if (page.effectiveMpv)
                 mpvController.setVolume(settingsManager.volume)
-            else
-                audio.volume = settingsManager.volume
         }
         function onQualityCapChanged() {
             if (qualityBox && !qualityBox.popup.visible)
@@ -480,7 +477,11 @@ Page {
                     Button {
                         text: qsTr("Open in Browser")
                         visible: page.videoWatchUrl.length > 0
-                        onClicked: Qt.openUrlExternally(page.videoWatchUrl)
+                                 && clipboardHelper.isAllowedPlaybackTarget(page.videoWatchUrl)
+                        onClicked: {
+                            if (clipboardHelper.isAllowedPlaybackTarget(page.videoWatchUrl))
+                                Qt.openUrlExternally(page.videoWatchUrl)
+                        }
                     }
                     Button {
                         text: page.showDetails ? qsTr("Hide Details") : qsTr("Details")
@@ -528,7 +529,12 @@ Page {
                         elide: Text.ElideRight
                     }
                     ToolButton {
-                        text: favoritesModel.contains(page.videoId) ? qsTr("★ Favorited") : qsTr("☆ Favorite")
+                        // count is a NOTIFY property: referencing it makes the
+                        // contains() call re-evaluate after add/remove.
+                        text: {
+                            favoritesModel.count
+                            return favoritesModel.contains(page.videoId) ? qsTr("★ Favorited") : qsTr("☆ Favorite")
+                        }
                         enabled: page.videoId.length > 0
                         Accessible.name: qsTr("Toggle favorite")
                         ToolTip.text: qsTr("Toggle favorite")
@@ -564,11 +570,16 @@ Page {
                         id: shareButton
                         text: qsTr("⤴ Share")
                         enabled: page.videoWatchUrl.length > 0
+                                 && clipboardHelper.isAllowedPlaybackTarget(page.videoWatchUrl)
                         Accessible.name: qsTr("Copy share link")
                         ToolTip.text: qsTr("Copy share link")
                         ToolTip.visible: hovered
                         onClicked: {
-                            if (clipboardHelper.copyText(page.videoWatchUrl)) {
+                            if (!clipboardHelper.isAllowedPlaybackTarget(page.videoWatchUrl)) {
+                                page.noticeText = qsTr("This link is not a YouTube video link.")
+                                page.pokeBars()
+                                noticeTimer.restart()
+                            } else if (clipboardHelper.copyText(page.videoWatchUrl)) {
                                 shareButton.text = qsTr("✓ Copied")
                                 copiedTimer.restart()
                                 page.noticeText = qsTr("Link copied to clipboard")
@@ -817,9 +828,9 @@ Page {
                                     mpvController.setVolume(value)
                                     mpvController.setMuted(false)
                                 } else {
-                                    audio.volume = value
                                     audio.muted = false
                                 }
+                                // Binding drives audio.volume from this.
                                 settingsManager.volume = value
                             }
                             ToolTip.text: qsTr("Volume")
@@ -1008,13 +1019,7 @@ Page {
                                         onClicked: queueModel.removeAt(index)
                                     }
                                 }
-                                onClicked: {
-                                    queueModel.playIndex(index)
-                                    var item = queueModel.currentItem()
-                                    if (item && item.videoId && page.playerWindow) {
-                                        page.playerWindow.openVideo(item.videoId, item.title, item.channel, item.channelId ?? "", item.channelUrl ?? "", item.watchUrl, item.durationString ?? "", item.duration ?? 0, item.thumbnail ?? "", item.description ?? "")
-                                    }
-                                }
+                                onClicked: queueModel.playIndex(index)
                             }
                         }
 
@@ -1056,7 +1061,6 @@ Page {
         // this binding is one-way (settings -> player) to avoid a loop.
         audioOutput: AudioOutput {
             id: audio
-            volume: settingsManager.volume
             onVolumeChanged: page.pushMprisState()
         }
         onErrorOccurred: function(error, errorString) {
@@ -1073,6 +1077,16 @@ Page {
         }
     }
 
+    // Single one-way source of truth for the fallback player's volume.
+    // Imperative assignments used to destroy this binding at runtime.
+    // No `when` guard: the slider writes settingsManager.volume, so audio
+    // must follow immediately even while the slider is being dragged.
+    Binding {
+        target: audio
+        property: "volume"
+        value: settingsManager.volume
+    }
+
     Connections {
         target: playbackResolver
         function onResolved(url) {
@@ -1086,6 +1100,22 @@ Page {
         function onResolveError(message) {
             if (!page.effectiveMpv)
                 page.errorText = message
+        }
+    }
+
+    // Video details arrive after openVideo() published the (possibly bare)
+    // placeholder track. Refresh MPRIS metadata with the real title/channel;
+    // this is what makes an MPRIS OpenUri show something useful in clients.
+    Connections {
+        target: videoDetails
+        function onLoaded() {
+            if (page.videoId.length === 0 || videoDetails.title.length === 0)
+                return
+            mprisAdapter.setCurrentTrack(page.videoId, videoDetails.title,
+                                         videoDetails.channel.length > 0 ? videoDetails.channel : page.videoChannel,
+                                         page.videoWatchUrl, page.videoThumbnail,
+                                         page.videoDuration > 0 ? page.videoDuration : 0,
+                                         videoDetails.description)
         }
     }
 
@@ -1123,14 +1153,22 @@ Page {
         }
         function onRequestVolume(volume) {
             if (!page.effectiveMpv) {
-                audio.volume = volume
                 audio.muted = false
                 settingsManager.volume = volume
             }
         }
         function onRequestOpenUri(url) {
-            if (!page.effectiveMpv && url && url.length > 0)
-                playbackResolver.resolve(url)
+            // Route through the main open flow so metadata, MPRIS track,
+            // history and the mpv/compat choice all follow the new video.
+            if (!url || url.length === 0 || !clipboardHelper.isAllowedPlaybackTarget(url))
+                return
+            var win = page.playerWindow
+            var main = win && win.mainWindow
+            if (main && main.forwardPlayRequested) {
+                main.forwardPlayRequested(url, "", "", "", "", url, "", 0, "", "")
+            } else if (win) {
+                win.openVideo(url, "", "", "", "", url, "", 0, "", "")
+            }
         }
     }
 

@@ -6,6 +6,8 @@
 
 #include <mpv/client.h>
 
+#include "channelutils.h"
+
 static void checkError(int err, const char *what)
 {
     if (err < 0)
@@ -85,6 +87,15 @@ void MpvController::load(const QString &url)
 {
     if (!m_mpv || url.trimmed().isEmpty())
         return;
+    // The QtMultimedia path is protected by PlaybackResolver::resolve().
+    // mpv's loadfile is a separate ingress and must apply the same policy:
+    // a crafted webpage_url from yt-dlp JSON must not make mpv fetch an
+    // arbitrary scheme/host.
+    if (!ChannelUtils::isAllowedPlaybackTarget(url)) {
+        m_lastError = tr("Only YouTube video links can be played.");
+        emit errorOccurred(m_lastError);
+        return;
+    }
     m_lastError.clear();
     m_eofEmitted = false;
     m_cacheStalled = false;

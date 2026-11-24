@@ -24,6 +24,16 @@ ApplicationWindow {
         }
     }
 
+    // Queue navigation (next/end-of-video/delegate click) is a play request
+    // like any other. Routing it through openPlayerWindow keeps the player,
+    // queue selection and metadata in sync.
+    Connections {
+        target: queueModel
+        function onItemRequested(videoId, title, channel, channelId, channelUrl, watchUrl, durationString, duration, thumbnail, description) {
+            root.openPlayerWindow(videoId, title, channel, channelId, channelUrl, watchUrl, durationString, duration, thumbnail, description)
+        }
+    }
+
     // Two-way sync between the in-memory Theme object and the persisted
     // settingsManager.theme ("dark"/"light"), guarded against loops.
     Connections {
@@ -101,8 +111,17 @@ ApplicationWindow {
     }
 
     function openPlayerWindow(videoId, videoTitle, videoChannel, videoChannelId, videoChannelUrl, videoWatchUrl, durationString, duration, thumbnail, description) {
-        queueModel.clear()
-        queueModel.enqueue(videoId, videoTitle, videoChannel, thumbnail ?? "", videoWatchUrl ?? "", durationString ?? "", duration ?? 0, description ?? "", videoChannelId ?? "", videoChannelUrl ?? "")
+        // "Play All" / "+ Queue" populate the queue first. If the clicked
+        // video is already queued, keep the queue and just move the cursor;
+        // only a genuinely new play replaces it.
+        var idx = queueModel.indexOfVideo(videoId)
+        if (idx < 0) {
+            queueModel.clear()
+            queueModel.enqueue(videoId, videoTitle, videoChannel, thumbnail ?? "", videoWatchUrl ?? "", durationString ?? "", duration ?? 0, description ?? "", videoChannelId ?? "", videoChannelUrl ?? "")
+            idx = queueModel.indexOfVideo(videoId)
+        }
+        if (idx >= 0)
+            queueModel.setCurrentIndex(idx)
         if (!root.playerWindow)
             root.playerWindow = playerWindowComponent.createObject(root)
         root.playerWindow.openVideo(videoId, videoTitle, videoChannel, videoChannelId ?? "", videoChannelUrl ?? "", videoWatchUrl, durationString, duration, thumbnail, description ?? "")

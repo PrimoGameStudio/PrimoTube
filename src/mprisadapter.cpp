@@ -5,6 +5,7 @@
 #include <QtLogging>
 #include <QtMath>
 
+#include "channelutils.h"
 #include "mpvcontroller.h"
 
 #ifdef PRIMOTUBE_HAS_MPRIS
@@ -385,13 +386,15 @@ void MprisAdapter::handleOpenUri(const QString &url)
     const QString uri = url.trimmed();
     if (uri.isEmpty())
         return;
-    // Placeholder track so clients show something until QML pushes the
-    // real metadata through the normal openVideo() flow.
-    setCurrentTrack(uri, uri, QString(), uri, QString(), 0.0);
-    if (driveMpv())
-        m_mpv->load(uri);
-    else
-        emit requestOpenUri(uri);
+    // Any client on the session bus can call OpenUri. Validate before the
+    // value can reach yt-dlp or mpv (which has ytdl=yes enabled).
+    if (!ChannelUtils::isAllowedPlaybackTarget(uri))
+        return;
+    // Always route through the QML openVideo flow. Driving mpv directly here
+    // left metadata/history on the previously playing video, and resolving
+    // into the compat player had the same problem. The placeholder track is
+    // published by PlayerWindow::openVideo() instead.
+    emit requestOpenUri(uri);
 }
 
 void MprisAdapter::handleQuit()

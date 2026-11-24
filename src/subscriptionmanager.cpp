@@ -73,6 +73,7 @@ void SubscriptionManager::subscribe(const QString &channelId, const QString &tit
             m_items[i] = item;
             const QModelIndex idx = index(i, 0);
             emit dataChanged(idx, idx);
+            emit countChanged();
             save();
             return;
         }
@@ -86,6 +87,7 @@ void SubscriptionManager::subscribe(const QString &channelId, const QString &tit
         m_items.erase(m_items.begin(), m_items.begin() + (m_items.size() - kMaxSubscriptions));
         endRemoveRows();
     }
+    emit countChanged();
     save();
 }
 
@@ -101,6 +103,7 @@ void SubscriptionManager::unsubscribe(const QString &channelIdOrUrl)
             beginRemoveRows(QModelIndex(), i, i);
             m_items.removeAt(i);
             endRemoveRows();
+            emit countChanged();
             save();
             return;
         }
@@ -114,6 +117,7 @@ void SubscriptionManager::clear()
     beginResetModel();
     m_items.clear();
     endResetModel();
+    emit countChanged();
     save();
 }
 
@@ -200,6 +204,7 @@ void SubscriptionManager::load()
         if (!dup)
             m_items.append(item);
     }
+    emit countChanged();
 }
 
 void SubscriptionManager::save() const
@@ -270,6 +275,7 @@ bool SubscriptionManager::importJson(const QString &jsonStr)
             m_items.append(item);
     }
     endResetModel();
+    emit countChanged();
     save();
     return true;
 }

@@ -49,10 +49,16 @@ bool isDirectOrPlaylistQuery(const QString &q)
     if (q.contains(QStringLiteral("list="))) {
         if (q.contains(QStringLiteral("://")))
             return ChannelUtils::isAllowedVideoUrl(q) || ChannelUtils::isChannelUrl(q);
-        if (!q.contains(QLatin1Char(' '))
-            || q.startsWith(QStringLiteral("www.")) || q.startsWith(QStringLiteral("youtube.com"))
-            || q.startsWith(QStringLiteral("youtu.be")))
+        // Schemeless input: a spaceless token containing "list=" is not
+        // enough — verify the host before treating it as a direct URL spec.
+        // Otherwise www.evil.com/x?list=abc would be handed to yt-dlp, which
+        // contradicts the promise that non-YouTube hosts stay as search text.
+        if (q.contains(QLatin1Char(' ')))
+            return false;
+        const QUrl schemeless(QStringLiteral("https://") + q);
+        if (ChannelUtils::isYouTubeHost(schemeless.host()))
             return true;
+        return ChannelUtils::isChannelUrl(q);
     }
     return false;
 }
@@ -69,6 +75,11 @@ QString pickChannelUrl(const QJsonObject &obj, const QString &channelId)
     return url;
 }
 } // namespace
+
+bool SearchBackend::isDirectQuery(const QString &query)
+{
+    return isDirectOrPlaylistQuery(query.trimmed());
+}
 
 bool SearchBackend::isChannelUrl(const QString &query)
 {

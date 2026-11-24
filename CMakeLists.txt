@@ -18,6 +18,9 @@ if(PKG_CONFIG_FOUND)
 endif()
 
 qt_standard_project_setup(REQUIRES 6.5)
+# QML sources live in a subdirectory of the module; with QTP0004 NEW CMake
+# generates the extra qml/qmldir automatically instead of warning.
+qt_policy(SET QTP0004 NEW)
 
 qt_add_executable(appPrimoTube
     src/main.cpp

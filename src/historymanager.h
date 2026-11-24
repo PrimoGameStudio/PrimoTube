@@ -8,6 +8,9 @@
 
 class HistoryManager : public QAbstractListModel {
     Q_OBJECT
+    // rowCount() is not a NOTIFY dependency for QML bindings; expose a real
+    // property so labels and favorite-button state re-evaluate on changes.
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
 public:
     enum Roles {
         VideoIdRole = VideoModel::VideoIdRole,
@@ -25,6 +28,7 @@ public:
     explicit HistoryManager(bool isFavorites = false, QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int count() const { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
@@ -43,6 +47,9 @@ public:
     static constexpr int kMaxHistory = 100;
     static constexpr int kMaxFavorites = 1000;
     static constexpr int kMaxImportBytes = 5 * 1024 * 1024;
+
+signals:
+    void countChanged();
 
 private:
     void load();

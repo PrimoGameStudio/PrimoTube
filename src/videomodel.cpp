@@ -59,6 +59,7 @@ void VideoModel::clear()
     beginResetModel();
     m_items.clear();
     endResetModel();
+    emit countChanged();
 }
 
 void VideoModel::addVideo(const VideoItem &item)
@@ -66,6 +67,7 @@ void VideoModel::addVideo(const VideoItem &item)
     beginInsertRows(QModelIndex(), m_items.size(), m_items.size());
     m_items.append(item);
     endInsertRows();
+    emit countChanged();
 }
 
 void VideoModel::setItems(const QVector<VideoItem> &items)
@@ -73,4 +75,5 @@ void VideoModel::setItems(const QVector<VideoItem> &items)
     beginResetModel();
     m_items = items;
     endResetModel();
+    emit countChanged();
 }

@@ -19,6 +19,12 @@ QString ytdlpExecutable();
 // True for bare video ids or https URLs on YouTube hosts. Used to reject
 // file:/// and intranet URLs before they reach yt-dlp/mpv.
 bool isAllowedVideoUrl(const QString &idOrUrl);
+// Strict validator for values that will be handed to yt-dlp or mpv as a
+// playback target: either an http(s) URL on a YouTube host, or a canonical
+// 11-character video id. Unlike isAllowedVideoUrl(), bare arbitrary strings
+// are rejected. Use this at every new ingress point (mpv loadfile, MPRIS
+// OpenUri, QML "Open in Browser").
+bool isAllowedPlaybackTarget(const QString &target);
 // Strict YouTube host check (exact or subdomain). Rejects
 // youtube.com.evil.com and evil.com/?youtube.com which substring
 // matching would wrongly allow.

@@ -56,6 +56,7 @@ void DownloadBackend::download(const QString &videoIdOrUrl)
 
     m_cancelled = false;
     m_output.clear();
+    m_stderrTail.clear();
     m_lineBuf.clear();
     m_savedPath.clear();
     m_lastError.clear();
@@ -113,19 +114,33 @@ void DownloadBackend::cancel()
 
 void DownloadBackend::onReadyRead()
 {
-    const QString chunk = QString::fromUtf8(m_process->readAllStandardOutput())
-        + QString::fromUtf8(m_process->readAllStandardError());
+    const QString outChunk = QString::fromUtf8(m_process->readAllStandardOutput());
+    const QString errChunk = QString::fromUtf8(m_process->readAllStandardError());
+    const QString chunk = outChunk + errChunk;
     m_output += chunk;
     // Bound memory: keep only the last 32KB for error reporting; filename
     // parsing below uses complete lines only (see m_lineBuf).
     static constexpr int kMaxOutput = 32 * 1024;
     if (m_output.size() > kMaxOutput)
         m_output = m_output.right(kMaxOutput);
+    // Keep stderr separately: the mixed tail can otherwise report a stale
+    // stdout progress line as the error message.
+    if (!errChunk.isEmpty()) {
+        m_stderrTail += errChunk;
+        static constexpr int kMaxStderr = 8 * 1024;
+        if (m_stderrTail.size() > kMaxStderr)
+            m_stderrTail = m_stderrTail.right(kMaxStderr);
+    }
 
-    // Parse complete lines only: a 32KB truncation or a chunk boundary can
+    // Parse complete lines only: a truncation or a chunk boundary can
     // otherwise split a "[download] Destination:" line mid-token and clip
     // the filename. The partial tail is carried over to the next call.
+    // m_lineBuf must be bounded too — a single unterminated line must not
+    // grow without limit on the GUI thread.
     m_lineBuf += chunk;
+    static constexpr int kMaxLineBuf = 32 * 1024;
+    if (m_lineBuf.size() > kMaxLineBuf)
+        m_lineBuf = m_lineBuf.right(kMaxLineBuf);
     QStringList lines = m_lineBuf.split(QLatin1Char('\n'));
     m_lineBuf = lines.takeLast();
 
@@ -198,6 +213,7 @@ void DownloadBackend::onProcessFinished(int exitCode, QProcess::ExitStatus exitS
             qWarning() << "DownloadBackend: default clients failed, falling back to android client";
             m_phase = 1;
             m_output.clear();
+            m_stderrTail.clear();
             m_lineBuf.clear();
             m_savedPath.clear();
             setProgress(0.0);
@@ -205,7 +221,8 @@ void DownloadBackend::onProcessFinished(int exitCode, QProcess::ExitStatus exitS
             startAttempt();
             return;
         }
-        const QString stderrTail = m_output.trimmed().split(QLatin1Char('\n')).last().trimmed();
+        const QString errorSource = m_stderrTail.isEmpty() ? m_output : m_stderrTail;
+        const QString stderrTail = errorSource.trimmed().split(QLatin1Char('\n')).last().trimmed();
         m_lastError = stderrTail.isEmpty()
             ? tr("Download failed (yt-dlp exit code %1).").arg(exitCode)
             : stderrTail;
@@ -224,9 +241,10 @@ void DownloadBackend::onProcessFinished(int exitCode, QProcess::ExitStatus exitS
     setProgress(1.0);
     const QString verified = verifiedSavedPath();
     if (verified.isEmpty()) {
+        const QString parsedPath = m_savedPath;
         m_savedPath.clear();
         m_lastError = tr("Download finished but the file could not be found.");
-        qWarning() << "DownloadBackend:" << m_lastError << "parsed as:" << m_savedPath;
+        qWarning() << "DownloadBackend:" << m_lastError << "parsed as:" << parsedPath;
         emit downloadError(m_lastError);
         return;
     }

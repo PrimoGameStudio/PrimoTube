@@ -21,6 +21,7 @@ struct VideoItem {
 
 class VideoModel : public QAbstractListModel {
     Q_OBJECT
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
 public:
     enum Roles {
         VideoIdRole = Qt::UserRole + 1,
@@ -41,6 +42,7 @@ public:
     explicit VideoModel(QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int count() const { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
@@ -48,6 +50,9 @@ public:
     void addVideo(const VideoItem &item);
     // Atomically replaces all items (used for the sorted Home feed).
     void setItems(const QVector<VideoItem> &items);
+
+signals:
+    void countChanged();
 
 private:
     QVector<VideoItem> m_items;

@@ -98,6 +98,7 @@ void HistoryManager::addItem(const QString &videoId, const QString &title, const
         m_items.resize(cap);
         endRemoveRows();
     }
+    emit countChanged();
     save();
 }
 
@@ -108,6 +109,7 @@ void HistoryManager::removeItem(const QString &videoId)
             beginRemoveRows(QModelIndex(), i, i);
             m_items.removeAt(i);
             endRemoveRows();
+            emit countChanged();
             save();
             break;
         }
@@ -121,6 +123,7 @@ void HistoryManager::clear()
     beginResetModel();
     m_items.clear();
     endResetModel();
+    emit countChanged();
     save();
 }
 
@@ -166,6 +169,7 @@ void HistoryManager::load()
         item.channelUrl = obj.value(QStringLiteral("channelUrl")).toString().left(2048);
         m_items.append(item);
     }
+    emit countChanged();
 }
 
 void HistoryManager::save() const
@@ -240,6 +244,7 @@ bool HistoryManager::importJson(const QString &jsonStr)
         m_items.append(item);
     }
     endResetModel();
+    emit countChanged();
     save();
     return true;
 }

@@ -53,6 +53,7 @@ private:
     QString m_lastError;
     QString m_savedPath;
     QString m_output; // buffered yt-dlp output for progress/filename parsing (tail only)
+    QString m_stderrTail; // stderr-only tail, for accurate error messages
     QString m_lineBuf; // partial line carry-over so split lines never parse half-clipped
     QString m_watchUrl;
     QString m_destTemplate;

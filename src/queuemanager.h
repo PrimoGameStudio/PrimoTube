@@ -51,6 +51,12 @@ public:
 
     Q_INVOKABLE void removeAt(int index);
     Q_INVOKABLE void clear();
+    // Index of a queued video by id, or -1. Lets the UI keep an existing
+    // queue intact when the user clicks a video that is already in it.
+    Q_INVOKABLE int indexOfVideo(const QString &videoId) const;
+    // Update the current item without emitting itemRequested (used by the
+    // normal play flow, which drives playback itself).
+    Q_INVOKABLE void setCurrentIndex(int index);
     Q_INVOKABLE void playIndex(int index);
     Q_INVOKABLE bool advance();
     Q_INVOKABLE QVariantMap currentItem() const;

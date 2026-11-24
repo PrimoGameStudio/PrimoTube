@@ -28,6 +28,8 @@ public:
 
     Q_INVOKABLE static bool isChannelUrl(const QString &query);
     static QString channelVideosUrl(const QString &query);
+    // Testable classification of direct yt-dlp targets vs plain search text.
+    static bool isDirectQuery(const QString &query);
 
     static constexpr int kPageSize = 10;
     static constexpr int kMaxTotal = 50;

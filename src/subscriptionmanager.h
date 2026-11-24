@@ -18,6 +18,9 @@ struct ChannelItem {
 // "subscriptionsList"). Mirrors the HistoryManager pattern.
 class SubscriptionManager : public QAbstractListModel {
     Q_OBJECT
+    // Reactive count for QML labels and the subscribe-button binding
+    // (rowCount() has no NOTIFY signal).
+    Q_PROPERTY(int count READ count NOTIFY countChanged)
 public:
     enum Roles {
         ChannelIdRole = Qt::UserRole + 1,
@@ -31,6 +34,7 @@ public:
     explicit SubscriptionManager(QObject *parent = nullptr);
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
+    int count() const { return m_items.size(); }
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
@@ -52,6 +56,9 @@ public:
 
     static constexpr int kMaxSubscriptions = 500;
     static constexpr int kMaxImportBytes = 5 * 1024 * 1024;
+
+signals:
+    void countChanged();
 
 private:
     static QString keyOf(const ChannelItem &item);

@@ -157,12 +157,31 @@ void QueueManager::clear()
     emit queueChanged();
 }
 
+int QueueManager::indexOfVideo(const QString &videoId) const
+{
+    const QString id = videoId.trimmed();
+    if (id.isEmpty())
+        return -1;
+    for (int i = 0; i < m_items.size(); ++i) {
+        if (m_items.at(i).videoId == id)
+            return i;
+    }
+    return -1;
+}
+
+void QueueManager::setCurrentIndex(int index)
+{
+    if (index < -1 || index >= m_items.size() || index == m_currentIndex)
+        return;
+    m_currentIndex = index;
+    emit currentIndexChanged();
+}
+
 void QueueManager::playIndex(int index)
 {
     if (index < 0 || index >= m_items.size())
         return;
-    m_currentIndex = index;
-    emit currentIndexChanged();
+    setCurrentIndex(index);
     const VideoItem &item = m_items.at(index);
     emit itemRequested(item.videoId, item.title, item.channel, item.channelId, item.channelUrl,
                        item.watchUrl, item.durationString, item.duration, item.thumbnail, item.description);

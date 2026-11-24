@@ -3,6 +3,8 @@
 #include <QClipboard>
 #include <QGuiApplication>
 
+#include "channelutils.h"
+
 ClipboardHelper::ClipboardHelper(QObject *parent)
     : QObject(parent)
 {
@@ -17,4 +19,9 @@ bool ClipboardHelper::copyText(const QString &text)
         return false;
     clipboard->setText(text);
     return true;
+}
+
+bool ClipboardHelper::isAllowedPlaybackTarget(const QString &target) const
+{
+    return ChannelUtils::isAllowedPlaybackTarget(target);
 }
