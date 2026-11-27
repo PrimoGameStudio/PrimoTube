@@ -8,8 +8,7 @@ Page {
     id: page
     objectName: "settingsPage"
     property var pageTheme: null
-    Theme { id: fallbackTheme }
-    readonly property var effectiveTheme: pageTheme ?? fallbackTheme
+    readonly property var effectiveTheme: pageTheme
     signal backRequested()
 
     property string dirError: ""
@@ -96,12 +95,18 @@ Page {
             spacing: 12
 
             GroupBox {
-                title: qsTr("Downloads")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
                 ColumnLayout {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
                     spacing: 6
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Downloads")
+                        color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
                     Label {
                         Layout.fillWidth: true
                         text: qsTr("Videos are saved to this folder (applies to the next download).")
@@ -155,12 +160,18 @@ Page {
             }
 
             GroupBox {
-                title: qsTr("Playback")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
                 ColumnLayout {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
                     spacing: 6
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Playback")
+                        color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
@@ -173,6 +184,11 @@ Page {
                             Layout.preferredWidth: 120
                             model: page.qualityModel
                             currentIndex: 0
+                            palette.text: effectiveTheme.textColor
+                            palette.buttonText: effectiveTheme.textColor
+                            palette.button: effectiveTheme.qccButton
+                            palette.highlight: effectiveTheme.qccHighlight
+                            palette.highlightedText: effectiveTheme.qccHighlightedText
                             // The quality cap only applies to libmpv; the
                             // built-in player always serves progressive
                             // streams.
@@ -206,6 +222,8 @@ Page {
                         Switch {
                             checked: settingsManager.forceFallbackPlayer
                             onToggled: settingsManager.forceFallbackPlayer = checked
+                            palette.highlight: effectiveTheme.qccHighlight
+                            palette.mid: effectiveTheme.qccMid
                         }
                     }
                     Label {
@@ -231,6 +249,8 @@ Page {
                             Layout.fillWidth: true
                             from: 0
                             to: 1
+                            palette.highlight: effectiveTheme.qccHighlight
+                            palette.mid: effectiveTheme.qccMid
                             // Single-writer rule: this slider writes
                             // settingsManager.volume; PlayerPage syncs from it.
                             Binding {
@@ -251,23 +271,35 @@ Page {
             }
 
             GroupBox {
-                title: qsTr("Search")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 8
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
                     Label {
                         Layout.fillWidth: true
-                        text: qsTr("Max results per search:")
+                        text: qsTr("Search")
                         color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
                     }
-                    SpinBox {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Max results per search:")
+                            color: effectiveTheme.textColor
+                        }
+                        SpinBox {
                         id: resultsBox
                         from: 1
                         to: 25
                         value: settingsManager.maxResults
                         editable: true
+                        palette.text: effectiveTheme.textColor
+                        palette.buttonText: effectiveTheme.textColor
+                        palette.button: effectiveTheme.qccButton
                         onValueModified: settingsManager.maxResults = value
                         Connections {
                             target: settingsManager
@@ -279,35 +311,54 @@ Page {
                     }
                 }
             }
+            }
 
             GroupBox {
-                title: qsTr("Appearance")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 8
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
                     Label {
                         Layout.fillWidth: true
-                        text: qsTr("Dark theme")
+                        text: qsTr("Appearance")
                         color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
                     }
-                    Switch {
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Dark theme")
+                            color: effectiveTheme.textColor
+                        }
+                        Switch {
                         // Persisted via settingsManager.theme; Main.qml syncs
                         // the in-memory Theme object from it.
                         checked: effectiveTheme.isDark
                         onToggled: settingsManager.theme = checked ? "dark" : "light"
+                        palette.highlight: effectiveTheme.qccHighlight
+                        palette.mid: effectiveTheme.qccMid
                     }
+                }
                 }
             }
 
             GroupBox {
-                title: qsTr("Data & Backups")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
                 ColumnLayout {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
                     spacing: 6
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Data & Backups")
+                        color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
                     Label {
                         Layout.fillWidth: true
                         text: qsTr("Export watch history, favorites, or subscriptions to clipboard as JSON.")
@@ -356,12 +407,18 @@ Page {
             }
 
             GroupBox {
-                title: qsTr("Maintenance")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
                 ColumnLayout {
-                    anchors.fill: parent
+                    Layout.fillWidth: true
                     spacing: 6
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Maintenance")
+                        color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
                     Label {
                         Layout.fillWidth: true
                         text: ytdlpUpdater.statusText.length > 0 ? ytdlpUpdater.statusText : qsTr("yt-dlp status unknown.")
@@ -402,16 +459,26 @@ Page {
             }
 
             GroupBox {
-                title: qsTr("About")
                 Layout.fillWidth: true
-                palette.text: effectiveTheme.textColor
-                Label {
-                    anchors.fill: parent
-                    text: qsTr("PrimoTube — a Qt/QML YouTube client with libmpv playback, yt-dlp downloads, and local history, favorites, and subscriptions.")
-                    color: effectiveTheme.textColor
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("About")
+                        color: effectiveTheme.textColor
+                        font.bold: true
+                        font.pixelSize: 14
+                        wrapMode: Text.WordWrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("PrimoTube — a Qt/QML YouTube client with libmpv playback, yt-dlp downloads, and local history, favorites, and subscriptions.")
+                        color: effectiveTheme.textColor
                     opacity: 0.7
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
+                }
                 }
             }
         }

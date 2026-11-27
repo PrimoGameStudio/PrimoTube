@@ -3,8 +3,81 @@
 #include <QQmlContext>
 #include <QStandardPaths>
 #include <QWindow>
+#include <QFile>
+#include <QFileSystemWatcher>
+#include <QTextStream>
+#include <QDir>
+#include <QColor>
 #include <QtLogging>
+#include <QtQuickControls2/QQuickStyle>
 #include <clocale>
+
+// Reads the Omarchy accent color from colors.toml and watches it for changes,
+// so PrimoTube follows the active Omarchy theme dynamically.
+class OmarchyTheme : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QString accentColor READ accentColor NOTIFY accentColorChanged)
+    Q_PROPERTY(bool accentColorValid READ accentColorValid NOTIFY accentColorChanged)
+
+public:
+    explicit OmarchyTheme(QObject *parent = nullptr)
+        : QObject(parent)
+        , m_colorsPath(QDir::homePath() + QLatin1String("/.local/state/omarchy/current/theme/colors.toml"))
+    {
+        m_watcher.addPath(m_colorsPath);
+        connect(&m_watcher, &QFileSystemWatcher::fileChanged, this, &OmarchyTheme::reload);
+        reload();
+    }
+
+    QString accentColor() const { return m_accentColor; }
+    bool accentColorValid() const { return m_accentColorValid; }
+
+public slots:
+    void reload() {
+        QString color = readAccentColor();
+        bool valid = !color.isEmpty();
+        if (valid && (color != m_accentColor || m_accentColorValid != valid)) {
+            m_accentColor = color;
+            m_accentColorValid = true;
+            emit accentColorChanged();
+        } else if (!valid && m_accentColorValid) {
+            m_accentColor = {};
+            m_accentColorValid = false;
+            emit accentColorChanged();
+        }
+    }
+
+signals:
+    void accentColorChanged();
+
+private:
+    QString readAccentColor() {
+        QFile file(m_colorsPath);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+            return {};
+        QTextStream in(&file);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(QLatin1String("accent"))) {
+                int eq = line.indexOf(QLatin1Char('='));
+                if (eq > 0) {
+                    QString val = line.mid(eq + 1).trimmed();
+                    if (val.startsWith(QLatin1String("\"")) && val.endsWith(QLatin1String("\"")))
+                        val = val.mid(1, val.length() - 2);
+                    return val;
+                }
+            }
+        }
+        return {};
+    }
+
+    QFileSystemWatcher m_watcher;
+    QString m_accentColor;
+    bool m_accentColorValid = false;
+    QString m_colorsPath;
+};
+
+#include "main.moc"
 
 #include "clipboardhelper.h"
 #include "channelbackend.h"
@@ -34,6 +107,10 @@ int main(int argc, char *argv[])
     app.setOrganizationName(QStringLiteral("PrimoGameStudio"));
     app.setApplicationName(QStringLiteral("PrimoTube"));
 
+    // Use the Material style so QQuick Controls render consistently across
+    // platforms; the per-app Theme.qml palette colors are applied on top.
+    QQuickStyle::setStyle(QStringLiteral("Material"));
+
     SettingsManager settingsManager;
     DependencyChecker dependencyChecker;
 
@@ -59,6 +136,7 @@ int main(int argc, char *argv[])
     MpvController mpvController;
     mpvController.setQualityCap(settingsManager.qualityCap());
     MprisAdapter mprisAdapter(&mpvController);
+    OmarchyTheme omarchyTheme;
 
     qmlRegisterType<MpvVideoItem>("PrimoTube", 1, 0, "MpvVideo");
 
@@ -82,6 +160,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("ytdlpUpdater"), &ytdlpUpdater);
     engine.rootContext()->setContextProperty(QStringLiteral("mpvController"), &mpvController);
     engine.rootContext()->setContextProperty(QStringLiteral("mprisAdapter"), &mprisAdapter);
+    engine.rootContext()->setContextProperty(QStringLiteral("omarchyTheme"), &omarchyTheme);
 
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed, &app, []() { QCoreApplication::exit(-1); },

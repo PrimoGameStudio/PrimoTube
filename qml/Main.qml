@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Controls.Material
 import QtQuick.Layouts
 
 ApplicationWindow {
@@ -8,6 +9,9 @@ ApplicationWindow {
     width: 1024
     height: 700
     title: qsTr("PrimoTube")
+    Material.theme: theme.isDark ? Material.Dark : Material.Light
+    Material.primary: theme.primaryColor
+    Material.accent: theme.primaryColor
 
     Component.onCompleted: {
         // Silent background check; banner appears only if an update exists.
@@ -65,6 +69,7 @@ ApplicationWindow {
         id: playerWindowComponent
         PlayerWindow {
             mainWindow: root
+            pageTheme: theme
         }
     }
 

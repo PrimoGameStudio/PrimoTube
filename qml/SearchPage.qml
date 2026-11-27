@@ -6,8 +6,7 @@ import Qt5Compat.GraphicalEffects
 Page {
     id: page
     property var pageTheme: null
-    Theme { id: fallbackTheme }
-    readonly property var effectiveTheme: pageTheme ?? fallbackTheme
+    readonly property var effectiveTheme: pageTheme
     background: Rectangle { color: effectiveTheme.backgroundColor }
     signal playRequested(string videoId, string videoTitle, string videoChannel, string videoChannelId, string videoChannelUrl, string watchUrl, string durationString, int duration, string thumbnail, string description)
     signal channelClicked(string channelId, string channelUrl, string channelName)
@@ -56,24 +55,6 @@ Page {
                     }
                     onAccepted: page.routeQuery(text)
                 }
-                SpinBox {
-                    id: countBox
-                    from: 1
-                    to: 25
-                    value: settingsManager.maxResults
-                    editable: true
-                    onValueModified: settingsManager.maxResults = value
-                    ToolTip.text: qsTr("Max results")
-                    ToolTip.visible: hovered
-
-                    Connections {
-                        target: settingsManager
-                        function onMaxResultsChanged() {
-                            if (countBox.value !== settingsManager.maxResults)
-                                countBox.value = settingsManager.maxResults
-                        }
-                    }
-                }
                 Button {
                     text: searchBackend.searching ? qsTr("Stop") : qsTr("Search")
                     enabled: queryField.text.trim().length > 0 || searchBackend.searching
@@ -97,11 +78,11 @@ Page {
                 id: tabBar
                 Layout.fillWidth: true
                 background: Rectangle { color: effectiveTheme.surfaceColor }
-                TabButton { text: qsTr("Home"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Search Results"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Watch History"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Favorites"); palette.buttonText: effectiveTheme.textColor }
-                TabButton { text: qsTr("Channels"); palette.buttonText: effectiveTheme.textColor }
+                TabButton { text: qsTr("Home"); palette.buttonText: effectiveTheme.textColor; palette.highlight: effectiveTheme.qccHighlight }
+                TabButton { text: qsTr("Search Results"); palette.buttonText: effectiveTheme.textColor; palette.highlight: effectiveTheme.qccHighlight }
+                TabButton { text: qsTr("Watch History"); palette.buttonText: effectiveTheme.textColor; palette.highlight: effectiveTheme.qccHighlight }
+                TabButton { text: qsTr("Favorites"); palette.buttonText: effectiveTheme.textColor; palette.highlight: effectiveTheme.qccHighlight }
+                TabButton { text: qsTr("Channels"); palette.buttonText: effectiveTheme.textColor; palette.highlight: effectiveTheme.qccHighlight }
             }
         }
     }

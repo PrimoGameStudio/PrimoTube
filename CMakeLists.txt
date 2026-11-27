@@ -10,7 +10,7 @@ set(CMAKE_AUTOMOC ON)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia Network OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia Network OpenGL QuickControls2)
 find_package(Qt6 QUIET OPTIONAL_COMPONENTS DBus)
 find_package(PkgConfig QUIET)
 if(PKG_CONFIG_FOUND)
@@ -83,6 +83,7 @@ target_link_libraries(appPrimoTube PRIVATE
     Qt6::Multimedia
     Qt6::Network
     Qt6::OpenGL
+    Qt6::QuickControls2
 )
 
 if(MPV_FOUND)

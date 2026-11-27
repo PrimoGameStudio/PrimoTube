@@ -7,8 +7,8 @@ import PrimoTube 1.0
 Page {
     id: page
     property var pageTheme: null
-    Theme { id: fallbackTheme }
-    readonly property var effectiveTheme: pageTheme ?? fallbackTheme
+    readonly property var effectiveTheme: pageTheme
+    background: Rectangle { color: effectiveTheme.backgroundColor }
     signal playRequested(string videoId, string videoTitle, string videoChannel, string videoChannelId, string videoChannelUrl, string watchUrl, string durationString, int duration, string thumbnail, string description)
     signal channelClicked(string channelId, string channelUrl, string channelName)
     signal backRequested()
@@ -68,6 +68,7 @@ Page {
     }
 
     header: ToolBar {
+        background: Rectangle { color: effectiveTheme.surfaceColor }
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 8
@@ -76,6 +77,7 @@ Page {
 
             ToolButton {
                 text: qsTr("‹ Back")
+                palette.buttonText: effectiveTheme.textColor
                 onClicked: {
                     // Only cancel when this page owns the in-flight request;
                     // otherwise we'd kill the channel load of the page below.
@@ -91,10 +93,12 @@ Page {
             Label {
                 Layout.fillWidth: true
                 text: channelBackend.channelTitle.length > 0 ? channelBackend.channelTitle : qsTr("Channel")
+                color: effectiveTheme.textColor
                 font.bold: true
                 elide: Text.ElideRight
             }
             ToolButton {
+                palette.buttonText: effectiveTheme.textColor
                 // count is a NOTIFY property: referencing it forces the
                 // contains() call to re-evaluate after subscribe/unsubscribe.
                 property int subVersion: subscriptionsModel.count
