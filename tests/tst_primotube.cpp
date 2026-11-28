@@ -53,9 +53,11 @@ private slots:
 
     void testSettingsManager() {
         SettingsManager settings;
-        // Test max results bounding
+        // Max results matches SearchBackend::kMaxTotal (50).
         settings.setMaxResults(50);
-        QCOMPARE(settings.maxResults(), 25);
+        QCOMPARE(settings.maxResults(), 50);
+        settings.setMaxResults(100);
+        QCOMPARE(settings.maxResults(), 50);
         settings.setMaxResults(0);
         QCOMPARE(settings.maxResults(), 1);
         settings.setMaxResults(15);
@@ -68,6 +70,20 @@ private slots:
         QCOMPARE(settings.volume(), 0.0);
         settings.setVolume(0.75);
         QCOMPARE(settings.volume(), 0.75);
+
+        // Playback speed bounding and persistence.
+        QCOMPARE(settings.speed(), 1.0);
+        settings.setSpeed(10.0);
+        QCOMPARE(settings.speed(), 4.0);
+        settings.setSpeed(0.1);
+        QCOMPARE(settings.speed(), 0.25);
+        settings.setSpeed(1.5);
+        QCOMPARE(settings.speed(), 1.5);
+        {
+            SettingsManager reloaded;
+            QCOMPARE(reloaded.speed(), 1.5);
+        }
+        settings.setSpeed(1.0);
 
         // Test theme persistence and validation
         QCOMPARE(SettingsManager::themeOptions(), QStringList({"dark", "light"}));
@@ -266,6 +282,7 @@ private slots:
         // NOT callable that way — they must be Q_INVOKABLE or slots.
         const QMetaObject *mo = &MpvController::staticMetaObject;
         QVERIFY(mo->indexOfMethod("setVolume(double)") >= 0);
+        QVERIFY(mo->indexOfMethod("setSpeed(double)") >= 0);
         QVERIFY(mo->indexOfMethod("setMuted(bool)") >= 0);
         QVERIFY(mo->indexOfMethod("setPaused(bool)") >= 0);
         QVERIFY(mo->indexOfMethod("setSubtitleId(int)") >= 0);
@@ -276,6 +293,8 @@ private slots:
         MpvController mpv;
         QVERIFY(QMetaObject::invokeMethod(&mpv, "setVolume", Q_ARG(double, 0.5)));
         QCOMPARE(mpv.volume(), 0.5);
+        QVERIFY(QMetaObject::invokeMethod(&mpv, "setSpeed", Q_ARG(double, 1.25)));
+        QCOMPARE(mpv.speed(), 1.25);
         QVERIFY(QMetaObject::invokeMethod(&mpv, "setMuted", Q_ARG(bool, true)));
         QVERIFY(mpv.muted());
         QVERIFY(QMetaObject::invokeMethod(&mpv, "setQualityCap", Q_ARG(QString, QStringLiteral("720p"))));
@@ -300,6 +319,37 @@ private slots:
 #else
         QSKIP("libmpv unavailable");
 #endif
+    }
+
+    void testMpvSpeedRoundTrip() {
+#ifdef PRIMOTUBE_HAS_MPV
+        MpvController mpv;
+        if (!mpv.available())
+            QSKIP("libmpv unavailable");
+        mpv.setSpeed(1.5);
+        double rate = -1;
+        QVERIFY2(mpv_get_property(mpv.handle(), "speed", MPV_FORMAT_DOUBLE, &rate) >= 0,
+                 "mpv speed property unreadable");
+        QVERIFY2(qAbs(rate - 1.5) < 0.01, qPrintable(QStringLiteral("mpv speed=%1, want 1.5").arg(rate)));
+        QTRY_VERIFY_WITH_TIMEOUT(qAbs(mpv.speed() - 1.5) < 0.01, 3000);
+        mpv.setSpeed(1.0);
+        QTRY_VERIFY_WITH_TIMEOUT(qAbs(mpv.speed() - 1.0) < 0.01, 3000);
+#else
+        QSKIP("libmpv unavailable");
+#endif
+    }
+
+    void testReadBackupFile() {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath("backup.json");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("[{\"videoId\":\"abc\"}]");
+        file.close();
+        QCOMPARE(SettingsManager::readBackupFile(path), QString("[{\"videoId\":\"abc\"}]"));
+        QVERIFY(SettingsManager::readBackupFile(dir.filePath("missing.json")).isEmpty());
+        QVERIFY(SettingsManager::readBackupFile(dir.path()).isEmpty()); // directory, not file
     }
 
     void testChannelNormalization() {

@@ -14,6 +14,9 @@ Page {
     property string dirError: ""
     property string qualityNotice: ""
     property string exportNotice: ""
+    property string importError: ""
+    property int pendingImport: -1 // 0 history, 1 favorites, 2 subscriptions
+    property string pendingImportPath: ""
     // Stable model: calling qualityCapOptions() inline rebuilds the array
     // identity per eval and resets the ComboBox popup.
     property var qualityModel: []
@@ -36,6 +39,39 @@ Page {
         } else {
             dirError = qsTr("Could not use that folder (it must be creatable and writable).")
         }
+    }
+
+    function importName(idx) {
+        if (idx === 0) return qsTr("watch history")
+        if (idx === 1) return qsTr("favorites")
+        return qsTr("subscriptions")
+    }
+
+    function startImport(idx) {
+        pendingImport = idx
+        importDialog.open()
+    }
+
+    function performImport() {
+        if (pendingImport < 0)
+            return
+        var name = page.importName(pendingImport)
+        var json = settingsManager.readBackupFile(pendingImportPath)
+        var ok = false
+        if (json.length > 0) {
+            if (pendingImport === 0) ok = historyModel.importJson(json)
+            else if (pendingImport === 1) ok = favoritesModel.importJson(json)
+            else ok = subscriptionsModel.importJson(json)
+        }
+        if (ok) {
+            importError = ""
+            exportNotice = qsTr("%1 imported from backup.").arg(name)
+            exportTimer.restart()
+        } else {
+            importError = qsTr("Could not import %1 from that file (unreadable or invalid JSON).").arg(name)
+        }
+        pendingImport = -1
+        pendingImportPath = ""
     }
 
     Component.onCompleted: {
@@ -292,25 +328,25 @@ Page {
                             color: effectiveTheme.textColor
                         }
                         SpinBox {
-                        id: resultsBox
-                        from: 1
-                        to: 25
-                        value: settingsManager.maxResults
-                        editable: true
-                        palette.text: effectiveTheme.textColor
-                        palette.buttonText: effectiveTheme.textColor
-                        palette.button: effectiveTheme.qccButton
-                        onValueModified: settingsManager.maxResults = value
-                        Connections {
-                            target: settingsManager
-                            function onMaxResultsChanged() {
-                                if (resultsBox.value !== settingsManager.maxResults)
-                                    resultsBox.value = settingsManager.maxResults
+                            id: resultsBox
+                            from: 1
+                            to: 50
+                            value: settingsManager.maxResults
+                            editable: true
+                            palette.text: effectiveTheme.textColor
+                            palette.buttonText: effectiveTheme.textColor
+                            palette.button: effectiveTheme.qccButton
+                            onValueModified: settingsManager.maxResults = value
+                            Connections {
+                                target: settingsManager
+                                function onMaxResultsChanged() {
+                                    if (resultsBox.value !== settingsManager.maxResults)
+                                        resultsBox.value = settingsManager.maxResults
+                                }
                             }
                         }
                     }
                 }
-            }
             }
 
             GroupBox {
@@ -335,14 +371,14 @@ Page {
                             color: effectiveTheme.textColor
                         }
                         Switch {
-                        // Persisted via settingsManager.theme; Main.qml syncs
-                        // the in-memory Theme object from it.
-                        checked: effectiveTheme.isDark
-                        onToggled: settingsManager.theme = checked ? "dark" : "light"
-                        palette.highlight: effectiveTheme.qccHighlight
-                        palette.mid: effectiveTheme.qccMid
+                            // Persisted via settingsManager.theme; Main.qml syncs
+                            // the in-memory Theme object from it.
+                            checked: effectiveTheme.isDark
+                            onToggled: settingsManager.theme = checked ? "dark" : "light"
+                            palette.highlight: effectiveTheme.qccHighlight
+                            palette.mid: effectiveTheme.qccMid
+                        }
                     }
-                }
                 }
             }
 
@@ -361,7 +397,8 @@ Page {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: qsTr("Export watch history, favorites, or subscriptions to clipboard as JSON.")
+                        text: qsTr("Export watch history, favorites, or subscriptions to clipboard as JSON, "
+                                   + "or import a backup from a file. Importing replaces the existing list.")
                         color: effectiveTheme.textColor
                         opacity: 0.7
                         font.pixelSize: 12
@@ -395,11 +432,35 @@ Page {
                             }
                         }
                     }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Button {
+                            text: qsTr("Import History…")
+                            onClicked: page.startImport(0)
+                        }
+                        Button {
+                            text: qsTr("Import Favorites…")
+                            onClicked: page.startImport(1)
+                        }
+                        Button {
+                            text: qsTr("Import Subs…")
+                            onClicked: page.startImport(2)
+                        }
+                    }
                     Label {
                         Layout.fillWidth: true
                         visible: page.exportNotice.length > 0
                         text: page.exportNotice
                         color: "#2e7d32"
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: page.importError.length > 0
+                        text: page.importError
+                        color: "#d32f2f"
                         font.pixelSize: 12
                         wrapMode: Text.WordWrap
                     }
@@ -475,10 +536,10 @@ Page {
                         Layout.fillWidth: true
                         text: qsTr("PrimoTube — a Qt/QML YouTube client with libmpv playback, yt-dlp downloads, and local history, favorites, and subscriptions.")
                         color: effectiveTheme.textColor
-                    opacity: 0.7
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                }
+                        opacity: 0.7
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
         }
@@ -489,6 +550,29 @@ Page {
         title: qsTr("Choose download folder")
         currentFolder: settingsManager.localFileToUrl(settingsManager.downloadDirectory)
         onAccepted: page.applyDir(page.folderUrlToPath(selectedFolder))
+    }
+
+    FileDialog {
+        id: importDialog
+        title: qsTr("Choose a JSON backup")
+        nameFilters: [qsTr("JSON files (*.json)"), qsTr("All files (*)")]
+        currentFolder: settingsManager.localFileToUrl(settingsManager.downloadDirectory)
+        onAccepted: {
+            page.pendingImportPath = settingsManager.urlToLocalFile(selectedFile)
+            if (page.pendingImportPath.length === 0)
+                page.importError = qsTr("Could not read that file path.")
+            else
+                importConfirm.open()
+        }
+    }
+
+    MessageDialog {
+        id: importConfirm
+        title: qsTr("Confirm import")
+        text: qsTr("Importing this file replaces your current %1. This cannot be undone.")
+              .arg(page.importName(page.pendingImport))
+        buttons: MessageDialog.Ok | MessageDialog.Cancel
+        onAccepted: page.performImport()
     }
 
     Timer {

@@ -74,6 +74,7 @@ void MpvController::observeProperties()
     mpv_observe_property(m_mpv, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "volume", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 0, "speed", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "mute", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "track-list", MPV_FORMAT_NODE);
     mpv_observe_property(m_mpv, 0, "sid", MPV_FORMAT_INT64);
@@ -105,6 +106,9 @@ void MpvController::load(const QString &url)
     // so QML doesn't flicker before mpv confirms.
     // Quality cap applies to the video being loaded.
     mpv_set_option_string(m_mpv, "ytdl-format", ytdlFormatForCap(m_qualityCap).toUtf8().constData());
+    // Speed is a global option, but re-apply it explicitly so a file-local
+    // change in a previous stream can't leak into the next one.
+    checkError(mpv_set_property(m_mpv, "speed", MPV_FORMAT_DOUBLE, &m_speed), "set speed");
     const QByteArray u = url.trimmed().toUtf8();
     const char *args[] = {"loadfile", u.constData(), "replace", nullptr};
     checkError(mpv_command_async(m_mpv, 0, args), "loadfile");
@@ -168,6 +172,17 @@ void MpvController::setVolume(double v)
         double mpvVol = clamped * 100.0;
         checkError(mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &mpvVol), "set volume");
     }
+}
+
+void MpvController::setSpeed(double v)
+{
+    const double clamped = qBound(0.25, v, 4.0);
+    if (qFuzzyCompare(m_speed + 1.0, clamped + 1.0))
+        return;
+    m_speed = clamped;
+    emit speedChanged();
+    if (m_mpv)
+        checkError(mpv_set_property(m_mpv, "speed", MPV_FORMAT_DOUBLE, &m_speed), "set speed");
 }
 
 void MpvController::setMuted(bool m)
@@ -275,6 +290,12 @@ void MpvController::onMpvEvents()
                 if (!qFuzzyCompare(m_volume + 1.0, v + 1.0)) {
                     m_volume = qBound(0.0, v, 1.0);
                     emit volumeChanged();
+                }
+            } else if (name == QLatin1String("speed") && prop->format == MPV_FORMAT_DOUBLE) {
+                const double v = qBound(0.25, *static_cast<double *>(prop->data), 4.0);
+                if (!qFuzzyCompare(m_speed + 1.0, v + 1.0)) {
+                    m_speed = v;
+                    emit speedChanged();
                 }
             } else if (name == QLatin1String("mute") && prop->format == MPV_FORMAT_FLAG) {
                 m_muted = *static_cast<int *>(prop->data) != 0;

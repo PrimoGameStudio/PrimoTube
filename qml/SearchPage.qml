@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import Qt5Compat.GraphicalEffects
 
 Page {
@@ -11,6 +12,17 @@ Page {
     signal playRequested(string videoId, string videoTitle, string videoChannel, string videoChannelId, string videoChannelUrl, string watchUrl, string durationString, int duration, string thumbnail, string description)
     signal channelClicked(string channelId, string channelUrl, string channelName)
     signal openSettingsRequested()
+
+    property int pendingClear: -1 // 2 history, 3 favorites, 4 subscriptions
+    function clearName(tab) {
+        if (tab === 2) return qsTr("watch history")
+        if (tab === 3) return qsTr("favorites")
+        return qsTr("subscriptions")
+    }
+    function confirmClear(tab) {
+        page.pendingClear = tab
+        clearConfirm.open()
+    }
 
     // Single routing rule for both the Enter key and the Search button:
     // channel references open the channel page, everything else searches.
@@ -164,6 +176,13 @@ Page {
                 visible: videoModel.count > 0 && !searchBackend.searching
                 onClicked: queueModel.enqueueModel(videoModel)
             }
+            Button {
+                text: qsTr("🔀 Shuffle All")
+                visible: videoModel.count > 0 && !searchBackend.searching
+                ToolTip.text: qsTr("Replace the queue with these videos in random order and play the first one")
+                ToolTip.visible: hovered
+                onClicked: queueModel.shuffleModel(videoModel)
+            }
         }
 
         RowLayout {
@@ -177,12 +196,8 @@ Page {
             }
             Button {
                 text: qsTr("Clear All")
-                onClicked: {
-                    if (tabBar.currentIndex === 2)
-                        historyModel.clear()
-                    else if (tabBar.currentIndex === 3)
-                        favoritesModel.clear()
-                }
+                visible: tabBar.currentIndex === 2 ? historyModel.count > 0 : favoritesModel.count > 0
+                onClicked: page.confirmClear(tabBar.currentIndex)
             }
         }
 
@@ -198,7 +213,7 @@ Page {
             Button {
                 text: qsTr("Clear All")
                 visible: subscriptionsModel.count > 0
-                onClicked: subscriptionsModel.clear()
+                onClicked: page.confirmClear(4)
             }
         }
 
@@ -387,5 +402,22 @@ Page {
                 }
             }
 
+    }
+
+    MessageDialog {
+        id: clearConfirm
+        title: qsTr("Confirm clearing")
+        text: qsTr("Delete all %1? This cannot be undone.").arg(page.clearName(page.pendingClear))
+        buttons: MessageDialog.Ok | MessageDialog.Cancel
+        onAccepted: {
+            if (page.pendingClear === 2)
+                historyModel.clear()
+            else if (page.pendingClear === 3)
+                favoritesModel.clear()
+            else if (page.pendingClear === 4)
+                subscriptionsModel.clear()
+            page.pendingClear = -1
+        }
+        onRejected: page.pendingClear = -1
     }
 }

@@ -11,6 +11,7 @@ class SettingsManager : public QObject {
     Q_PROPERTY(QString downloadDirectory READ downloadDirectory WRITE setDownloadDirectory NOTIFY downloadDirectoryChanged)
     Q_PROPERTY(int maxResults READ maxResults WRITE setMaxResults NOTIFY maxResultsChanged)
     Q_PROPERTY(double volume READ volume WRITE setVolume NOTIFY volumeChanged)
+    Q_PROPERTY(double speed READ speed WRITE setSpeed NOTIFY speedChanged)
     Q_PROPERTY(QString qualityCap READ qualityCap WRITE setQualityCap NOTIFY qualityCapChanged)
     Q_PROPERTY(QString theme READ theme WRITE setTheme NOTIFY themeChanged)
     // When true, playback always uses the lightweight QtMultimedia player
@@ -24,6 +25,9 @@ public:
     // Converts a FolderDialog url to a local path (handles spaces/encoding).
     Q_INVOKABLE static QString urlToLocalFile(const QUrl &url);
     Q_INVOKABLE static QUrl localFileToUrl(const QString &path);
+    // Reads a JSON backup selected in QML. Capped at the same size the
+    // import backends accept; returns an empty string on any error.
+    Q_INVOKABLE static QString readBackupFile(const QString &path);
 
     QString downloadDirectory() const;
     void setDownloadDirectory(const QString &dir);
@@ -38,6 +42,9 @@ public:
     double volume() const;
     void setVolume(double vol);
 
+    double speed() const;
+    void setSpeed(double speed);
+
     QString qualityCap() const;
     void setQualityCap(const QString &cap);
 
@@ -51,6 +58,7 @@ signals:
     void downloadDirectoryChanged();
     void maxResultsChanged();
     void volumeChanged();
+    void speedChanged();
     void qualityCapChanged();
     void themeChanged();
     void forceFallbackPlayerChanged();
@@ -64,6 +72,7 @@ private:
     QString m_downloadDirectory;
     int m_maxResults;
     double m_volume;
+    double m_speed = 1.0;
     QString m_qualityCap;
     QString m_theme;
     bool m_forceFallbackPlayer = false;

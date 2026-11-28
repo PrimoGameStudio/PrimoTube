@@ -226,6 +226,19 @@ Page {
     // current index is set imperatively so an open popup is never stolen.
     property var subModel: ["Off"]
     property var qualityModel: []
+    // Stable model for the speed selector; parseFloat("1.25×") -> 1.25.
+    property var speedModel: ["0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"]
+    function speedIndex() {
+        for (var i = 0; i < page.speedModel.length; ++i) {
+            if (Math.abs(parseFloat(page.speedModel[i]) - settingsManager.speed) < 0.01)
+                return i
+        }
+        return 2 // 1×
+    }
+    function stepSpeed(delta) {
+        var idx = Math.max(0, Math.min(page.speedModel.length - 1, speedBox.currentIndex + delta))
+        settingsManager.speed = parseFloat(page.speedModel[idx])
+    }
     // Cached duration so the seek slider doesn't call durSec() per eval.
     property real cachedDur: 0
     function refreshCachedDur() {
@@ -280,6 +293,9 @@ Page {
 
     Component.onCompleted: {
         mpvController.setVolume(settingsManager.volume)
+        mpvController.setSpeed(settingsManager.speed)
+        player.playbackRate = settingsManager.speed
+        speedBox.currentIndex = page.speedIndex()
         // NOTE: audio.volume keeps its declarative binding
         // (audio.volume: settingsManager.volume) — do not assign here.
         page.qualityModel = settingsManager.qualityCapOptions()
@@ -308,6 +324,14 @@ Page {
             // Binding below; only mpv needs an explicit push.
             if (page.effectiveMpv)
                 mpvController.setVolume(settingsManager.volume)
+        }
+        function onSpeedChanged() {
+            // Applies immediately on both playback paths; the persisted
+            // setting is the single source of truth for speed.
+            mpvController.setSpeed(settingsManager.speed)
+            player.playbackRate = settingsManager.speed
+            if (speedBox && !speedBox.popup.visible)
+                speedBox.currentIndex = page.speedIndex()
         }
         function onQualityCapChanged() {
             if (qualityBox && !qualityBox.popup.visible)
@@ -361,14 +385,18 @@ Page {
         sequence: Qt.Key_Escape
         context: Qt.WindowShortcut
         onActivated: {
+            if (shortcutsPopup.opened)
+                return // let Popup handle its own dismissal
             var w = Window.window
             if (w && w.visibility === Window.FullScreen)
                 w.showNormal()
         }
     }
     function spaceFocusGuard() {
+        if (shortcutsPopup.opened)
+            return true
         if (subBox.activeFocus || audioBox.activeFocus || qualityBox.activeFocus
-                || seek.activeFocus || volumeSlider.activeFocus)
+                || speedBox.activeFocus || seek.activeFocus || volumeSlider.activeFocus)
             return true
         var item = Window.window ? Window.window.activeFocusItem : null
         if (!item)
@@ -395,8 +423,10 @@ Page {
         }
     }
     function seekFocusGuard() {
+        if (shortcutsPopup.opened)
+            return true
         if (subBox.activeFocus || audioBox.activeFocus || qualityBox.activeFocus
-                || seek.activeFocus || volumeSlider.activeFocus)
+                || speedBox.activeFocus || seek.activeFocus || volumeSlider.activeFocus)
             return true
         var item = Window.window ? Window.window.activeFocusItem : null
         // These controls consume arrow keys natively.
@@ -423,6 +453,67 @@ Page {
         sequence: "L"
         context: Qt.WindowShortcut
         onActivated: { if (!page.seekFocusGuard()) page.seekBy(10) }
+    }
+    Shortcut {
+        sequence: "["
+        context: Qt.WindowShortcut
+        onActivated: { if (!page.seekFocusGuard()) page.stepSpeed(-1) }
+    }
+    Shortcut {
+        sequence: "]"
+        context: Qt.WindowShortcut
+        onActivated: { if (!page.seekFocusGuard()) page.stepSpeed(1) }
+    }
+    Shortcut {
+        sequence: "?"
+        context: Qt.WindowShortcut
+        onActivated: shortcutsPopup.open()
+    }
+
+    // In-app reference for the shortcuts above. Reachable via "?" or the
+    // toolbar button; modal so it can't be triggered accidentally by Space.
+    Popup {
+        id: shortcutsPopup
+        anchors.centerIn: parent
+        width: Math.min(360, page.width - 32)
+        height: 270
+        modal: true
+        padding: 16
+        background: Rectangle {
+            color: effectiveTheme.surfaceColor
+            border.color: effectiveTheme.qccHighlight
+            radius: 6
+        }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label {
+                text: qsTr("Keyboard shortcuts")
+                color: effectiveTheme.textColor
+                font.bold: true
+                font.pixelSize: 15
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                color: effectiveTheme.textColor
+                font.family: "monospace"
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+                text: "Space  —  Play / Pause\n"
+                    + "← / J  —  Back 10 seconds\n"
+                    + "→ / L  —  Forward 10 seconds\n"
+                    + "[ / ]  —  Slower / Faster playback\n"
+                    + "F11  —  Toggle fullscreen\n"
+                    + "Esc  —  Exit fullscreen\n"
+                    + "?  —  Show this help"
+            }
+            Button {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Close")
+                onClicked: shortcutsPopup.close()
+            }
+        }
     }
 
     ColumnLayout {
@@ -622,6 +713,13 @@ Page {
                             if (page.showQueue)
                                 page.showDetails = false
                         }
+                    }
+                    ToolButton {
+                        text: "?"
+                        Accessible.name: qsTr("Keyboard shortcuts")
+                        ToolTip.text: qsTr("Keyboard shortcuts (?)")
+                        ToolTip.visible: hovered
+                        onClicked: shortcutsPopup.open()
                     }
                     ToolButton {
                         text: Window.window && Window.window.visibility === Window.FullScreen
@@ -873,6 +971,29 @@ Page {
                                 settingsManager.volume = value
                             }
                             ToolTip.text: qsTr("Volume")
+                            ToolTip.visible: hovered
+                        }
+                        Label {
+                            text: qsTr("Speed:")
+                            color: effectiveTheme.textColor
+                            font.pixelSize: 12
+                            opacity: 0.8
+                        }
+                        ComboBox {
+                            id: speedBox
+                            objectName: "speedBox"
+                            Layout.preferredWidth: 80
+                            model: page.speedModel
+                            currentIndex: 2
+                            palette.text: effectiveTheme.textColor
+                            palette.buttonText: effectiveTheme.textColor
+                            palette.button: effectiveTheme.qccButton
+                            palette.highlight: effectiveTheme.qccHighlight
+                            palette.highlightedText: effectiveTheme.qccHighlightedText
+                            onActivated: function(idx) {
+                                settingsManager.speed = parseFloat(page.speedModel[idx])
+                            }
+                            ToolTip.text: qsTr("Playback speed ([ / ])")
                             ToolTip.visible: hovered
                         }
                     }
@@ -1149,6 +1270,8 @@ Page {
                 return
             page.errorText = ""
             player.source = url
+            // A new source can reset the rate on some backends.
+            player.playbackRate = settingsManager.speed
             player.play()
             page.maybeAddHistory()
         }

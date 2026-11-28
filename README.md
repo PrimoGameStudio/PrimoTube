@@ -21,6 +21,11 @@ a local watch history and favorites list.
 - MPRIS support (`org.mpris.MediaPlayer2.primotube`): metadata and
   Play/Pause/Stop/Seek/Volume for desktop media widgets on both the mpv
   and fallback playback paths
+- Playback speed control (0.5×–2×), applied immediately on both playback
+  paths and remembered between runs; `[` / `]` step through speeds
+- JSON backup import for history, favorites, and subscriptions (Settings →
+  Data & Backups); imports replace the current list and ask for confirmation
+- In-app keyboard shortcut reference in the player (`?` button or `?` key)
 
 ## Dependencies
 
@@ -60,6 +65,11 @@ ctest --test-dir build --output-on-failure
 - Quality caps apply to the next video loaded.
 - History entries are added once playback starts successfully, so failed
   lookups don't pollute the list.
+- Player shortcuts: `Space` play/pause, `←`/`J` back 10s, `→`/`L` forward 10s,
+  `[`/`]` speed down/up, `F11` fullscreen, `Esc` exit fullscreen, `?` help.
+  Press `?` in the player for the full in-app list.
+- "Clear All" (history, favorites, subscriptions) and backup imports ask for
+  confirmation before changing data.
 
 ## License
 

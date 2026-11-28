@@ -15,8 +15,9 @@ SettingsManager::SettingsManager(QObject *parent)
         defaultDir = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
 
     m_downloadDirectory = m_settings.value(QStringLiteral("downloadDirectory"), defaultDir).toString();
-    m_maxResults = qBound(1, m_settings.value(QStringLiteral("maxResults"), 10).toInt(), 25);
+    m_maxResults = qBound(1, m_settings.value(QStringLiteral("maxResults"), 10).toInt(), 50);
     m_volume = qBound(0.0, m_settings.value(QStringLiteral("volume"), 1.0).toDouble(), 1.0);
+    m_speed = qBound(0.25, m_settings.value(QStringLiteral("speed"), 1.0).toDouble(), 4.0);
     const QString savedCap = m_settings.value(QStringLiteral("qualityCap"), QStringLiteral("Auto")).toString();
     m_qualityCap = qualityCapOptions().contains(savedCap) ? savedCap : QStringLiteral("Auto");
     const QString savedTheme = m_settings.value(QStringLiteral("theme"), QStringLiteral("dark")).toString();
@@ -60,7 +61,7 @@ int SettingsManager::maxResults() const
 
 void SettingsManager::setMaxResults(int results)
 {
-    int bounded = qBound(1, results, 25);
+    int bounded = qBound(1, results, 50);
     if (m_maxResults == bounded)
         return;
     m_maxResults = bounded;
@@ -81,6 +82,31 @@ void SettingsManager::setVolume(double vol)
     m_volume = bounded;
     persist(QStringLiteral("volume"), bounded);
     emit volumeChanged();
+}
+
+double SettingsManager::speed() const
+{
+    return m_speed;
+}
+
+void SettingsManager::setSpeed(double speed)
+{
+    const double bounded = qBound(0.25, speed, 4.0);
+    if (qFuzzyCompare(m_speed + 1.0, bounded + 1.0))
+        return;
+    m_speed = bounded;
+    persist(QStringLiteral("speed"), bounded);
+    emit speedChanged();
+}
+
+QString SettingsManager::readBackupFile(const QString &path)
+{
+    if (!QFileInfo(path).isFile())
+        return {};
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 5 * 1024 * 1024)
+        return {};
+    return QString::fromUtf8(file.readAll());
 }
 
 QStringList SettingsManager::qualityCapOptions()

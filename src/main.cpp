@@ -135,6 +135,7 @@ int main(int argc, char *argv[])
     YtdlpUpdater ytdlpUpdater;
     MpvController mpvController;
     mpvController.setQualityCap(settingsManager.qualityCap());
+    mpvController.setSpeed(settingsManager.speed());
     MprisAdapter mprisAdapter(&mpvController);
     OmarchyTheme omarchyTheme;
 

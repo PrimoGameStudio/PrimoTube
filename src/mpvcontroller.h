@@ -18,6 +18,7 @@ class MpvController : public QObject {
     Q_PROPERTY(double position READ position NOTIFY positionChanged)
     Q_PROPERTY(double duration READ duration NOTIFY durationChanged)
     Q_PROPERTY(double volume READ volume WRITE setVolume NOTIFY volumeChanged)
+    Q_PROPERTY(double speed READ speed WRITE setSpeed NOTIFY speedChanged)
     Q_PROPERTY(bool muted READ muted WRITE setMuted NOTIFY mutedChanged)
     Q_PROPERTY(QStringList subtitleTracks READ subtitleTracks NOTIFY subtitleTracksChanged)
     Q_PROPERTY(int subtitleId READ subtitleId WRITE setSubtitleId NOTIFY subtitleIdChanged)
@@ -41,6 +42,7 @@ public:
     double position() const { return m_position; }
     double duration() const { return m_duration; }
     double volume() const { return m_volume; }
+    double speed() const { return m_speed; }
     bool muted() const { return m_muted; }
     QStringList subtitleTracks() const { return m_subTracks; }
     int subtitleId() const { return m_subId; }
@@ -61,6 +63,7 @@ public:
     // mpvController.setVolume(x), not via property assignment).
     Q_INVOKABLE void setPaused(bool p);
     Q_INVOKABLE void setVolume(double v); // 0.0..1.0
+    Q_INVOKABLE void setSpeed(double v); // 0.25..4.0
     Q_INVOKABLE void setMuted(bool m);
     Q_INVOKABLE void setSubtitleId(int id); // mpv sid, -1 = none
     Q_INVOKABLE void setAudioId(int id);
@@ -74,6 +77,7 @@ signals:
     void positionChanged();
     void durationChanged();
     void volumeChanged();
+    void speedChanged();
     void mutedChanged();
     void subtitleTracksChanged();
     void subtitleIdChanged();
@@ -103,6 +107,7 @@ private:
     double m_position = 0.0;
     double m_duration = 0.0;
     double m_volume = 1.0;
+    double m_speed = 1.0;
     bool m_muted = false;
     QStringList m_subTracks;
     int m_subId = -1;
